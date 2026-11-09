@@ -1180,6 +1180,31 @@ document.addEventListener("submit", (event) => {
     return;
   }
 
+  if (form.dataset.form === "agenda-schedule-todo") {
+    const todo = todos.find((item) => item.id === form.dataset.id);
+    if (!todo || todo.done) {
+      toast("Deze to-do is niet meer beschikbaar om in te plannen.");
+      closeModal();
+      render();
+      return;
+    }
+    const date = String(data.get("date"));
+    const time = String(data.get("time"));
+    if (!isWeekday(date)) {
+      toast("Taken kunnen alleen op een werkdag worden ingepland.");
+      form.querySelector("#todo-schedule-date").focus();
+      return;
+    }
+    addAgendaSlotTask(date, time, todo.text, todo.id, todo.private);
+    todo.done = true;
+    save("agora-todos", todos);
+    closeModal();
+    render();
+    document.querySelector(`[data-action="add-agenda-entry"][data-date="${date}"][data-time="${time}"]`)?.focus();
+    toast("Taak ingepland en afgevinkt bij Mijn to-do's.");
+    return;
+  }
+
   if (form.dataset.form === "agenda-move") {
     const kind = form.dataset.kind;
     const sourceDate = form.dataset.date;
