@@ -10,6 +10,7 @@
     <script src="app.js" defer></script>
   </head>
   <body>
+    <a class="skip-link" href="#app">Ga naar hoofdinhoud</a>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <a class="brand" href="#" data-route="home" aria-label="Agora startpagina">
@@ -60,6 +61,6 @@
     </div>
     <div id="notificationPanel" class="notification-panel" hidden></div>
     <div id="modalRoot"></div>
-    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+    <div class="toast-region" id="toastRegion" role="status" aria-live="polite" aria-atomic="true"></div>
   </body>
 </html>
