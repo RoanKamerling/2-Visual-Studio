@@ -753,6 +753,17 @@ function openAgendaEntryModal(date, time, selectedKind = "task", eventType = "")
   document.querySelector("#agenda-entry-title").focus();
 }
 
+function openAgendaMoveModal(kind, date, time, index) {
+  const task = kind === "task"
+    ? agendaSlots.find((slot) => slot.date === date && slot.time === time)?.tasks[index]
+    : null;
+  const item = kind === "event" ? agendaItems[index] : task;
+  if (!item) return;
+  modalReturnFocus = document.activeElement;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="agendaMoveTitle" tabindex="-1"><div class="modal-head"><div><h2 id="agendaMoveTitle">Agenda-item verplaatsen</h2><p>${escapeHtml(item.title || item.text)} · kies de nieuwe datum en begintijd.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Venster sluiten">×</button></div><form data-form="agenda-move" data-kind="${kind}" data-date="${escapeHtml(date)}" data-time="${escapeHtml(time)}" data-index="${index}"><div class="form-grid"><div class="field"><label for="agenda-move-date">Nieuwe datum *</label><input id="agenda-move-date" name="date" type="date" required value="${escapeHtml(date)}"></div><div class="field"><label for="agenda-move-time">Nieuwe begintijd *</label><input id="agenda-move-time" name="time" type="time" required value="${escapeHtml(time)}"></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Verplaatsen</button></div></form></section></div>`;
+  document.querySelector("#agenda-move-date").focus();
+}
+
 function addAgendaSlotTask(date, time, text, todoId = "", isPrivate = false) {
   let slot = agendaSlots.find((item) => item.date === date && item.time === time);
   if (!slot) {
