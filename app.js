@@ -3,6 +3,18 @@ const modalRoot = document.querySelector("#modalRoot");
 const toastRegion = document.querySelector("#toastRegion");
 const pageLabel = document.querySelector("#pageLabel");
 const sidebar = document.querySelector("#sidebar");
+const themeToggle = document.querySelector("#themeToggle");
+
+function setTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  themeToggle.textContent = isDark ? "☀" : "☾";
+  themeToggle.setAttribute("aria-label", `${isDark ? "Lichte" : "Donkere"} modus inschakelen`);
+  themeToggle.title = `${isDark ? "Lichte" : "Donkere"} modus inschakelen`;
+  document.querySelector('meta[name="theme-color"]').content = isDark ? "#171d19" : "#f5f4ec";
+}
+
+setTheme(localStorage.getItem("agora-theme") || "light");
 
 const worlds = [
   "Artistieke wereld",
@@ -1217,6 +1229,11 @@ document.addEventListener("click", (event) => {
 });
 
 document.querySelector("#menuToggle").addEventListener("click", () => sidebar.classList.toggle("open"));
+themeToggle.addEventListener("click", () => {
+  const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  localStorage.setItem("agora-theme", theme);
+  setTheme(theme);
+});
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") closeModal();
 });
