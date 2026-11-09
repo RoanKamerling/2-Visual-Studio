@@ -1027,3 +1027,6 @@ html[data-theme="dark"] .todo-schedule-button { border-color: #465744; backgroun
   .calendar-views { display: grid; width: 100%; min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .calendar-view-button { min-width: 0; padding-right: 2px; padding-left: 2px; }
 }
+@media (max-width: 560px) {
+  .topbar-actions { gap: 5px; }
+}
