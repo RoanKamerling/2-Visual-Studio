@@ -764,6 +764,15 @@ function openAgendaMoveModal(kind, date, time, index) {
   document.querySelector("#agenda-move-date").focus();
 }
 
+function openTodoScheduleModal(todoId) {
+  const todo = todos.find((item) => item.id === todoId);
+  if (!todo || todo.done) return;
+  modalReturnFocus = document.activeElement;
+  const date = dateKey(agendaDate);
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="todoScheduleTitle" tabindex="-1"><div class="modal-head"><div><h2 id="todoScheduleTitle">Taak inplannen</h2><p>${escapeHtml(todo.text)} · kies een werkdag en begintijd.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Venster sluiten">×</button></div><form data-form="agenda-schedule-todo" data-id="${escapeHtml(todo.id)}"><div class="form-grid"><div class="field"><label for="todo-schedule-date">Datum *</label><input id="todo-schedule-date" name="date" type="date" required value="${date}"></div><div class="field"><label for="todo-schedule-time">Begintijd *</label><input id="todo-schedule-time" name="time" type="time" required value="09:00" step="1800"></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Inplannen</button></div></form></section></div>`;
+  document.querySelector("#todo-schedule-date").focus();
+}
+
 function addAgendaSlotTask(date, time, text, todoId = "", isPrivate = false) {
   let slot = agendaSlots.find((item) => item.date === date && item.time === time);
   if (!slot) {
