@@ -600,7 +600,7 @@ function renderAgendaWorkweek() {
   const headers = `<div class="workweek-header-row" role="row"><span class="workweek-header-cell" role="columnheader">Tijd</span><span class="workweek-header-cell" role="columnheader">Activiteit</span>${dates.map((date) => `<span class="workweek-header-cell" role="columnheader"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}</div>`;
   const earlierToggle = earlierAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-earlier" aria-expanded="${agendaShowEarlier}">${agendaShowEarlier ? "Verberg tijden vóór 09:00" : `Toon tijden vóór 09:00 (vanaf ${timeForMinutes(floorHalfHour(earliest))})`}</button>` : "";
   const laterToggle = laterAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-later" aria-expanded="${agendaShowLater}">${agendaShowLater ? "Verberg tijden na 15:00" : `Toon tijden na 15:00 (tot ${timeForMinutes(ceilHalfHour(latest))})`}</button>` : "";
-  return `${earlierToggle}<div class="workweek-calendar" role="table" aria-label="Werkweekagenda van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}">${headers}${rows}</div>${laterToggle}`;
+  return `${earlierToggle}<div class="workweek-scroll" role="region" aria-label="Werkweekagenda, horizontaal scrollbaar" tabindex="0"><div class="workweek-calendar" role="table" aria-label="Werkweekagenda van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}">${headers}${rows}</div></div>${laterToggle}`;
 }
 
 function renderAgendaDays() {
