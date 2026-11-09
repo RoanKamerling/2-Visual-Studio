@@ -497,7 +497,7 @@ function renderAgendaWorkweek() {
     const maxSlotContent = Math.max(0, ...itemsByDate.map((items) => {
       const slots = items.filter((item) => item.slot && floorHalfHour(minutesForTime(item.time)) === minute && item.tasks.length);
       const taskCount = slots.reduce((sum, slot) => sum + slot.tasks.length, 0);
-      return taskCount * 24 + slots.length * 24;
+      return taskCount * 50 + slots.length * 24 + 8;
     }));
     return Math.max(48, 34 + maxSlotContent);
   });
