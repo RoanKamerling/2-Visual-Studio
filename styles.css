@@ -800,7 +800,7 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
   display: grid;
   grid-template-columns: 54px 100px repeat(5, minmax(112px, 1fr));
 }
-.workweek-header-row { position: sticky; z-index: 8; top: 0; }
+.workweek-header-row { position: relative; z-index: 1; }
 .workweek-row { position: relative; min-height: var(--row-height); }
 .workweek-header-cell,
 .workweek-grid-time,
@@ -811,7 +811,7 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
   margin-right: -1px;
   margin-bottom: -1px;
 }
-.workweek-header-cell { position: relative; z-index: 8; background: #f7f8f2; }
+.workweek-header-cell { position: relative; z-index: 1; background: #f7f8f2; }
 .workweek-header-cell small { color: #52604f; font-size: 0.6875rem; }
 .workweek-header-cell strong { font-size: 0.75rem; }
 .workweek-grid-time { display: block; min-height: var(--row-height); padding: 7px 4px; background: #fbfcf8; color: #4c594d; font-size: 0.6875rem; }
