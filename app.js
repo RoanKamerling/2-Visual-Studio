@@ -589,7 +589,7 @@ function renderAgendaWorkweek() {
       const cellAdd = `<button class="agenda-cell-add" type="button" data-action="add-agenda-entry" data-date="${date}" data-time="${time}" aria-label="Taak of gebeurtenis toevoegen op ${safeDate(date, { weekday: "long", day: "numeric", month: "long" })} om ${time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`;
       const routineMarkup = routineItems.map((item) => {
         const offset = (minutesForTime(item.time) - minute) / 30 * rowHeights[rowIndex];
-        return agendaEventMarkup(item, true, false, `top:${offset}px;left:2px;right:2px;height:22px;`);
+        return agendaEventMarkup(item, true, false, `top:${offset}px;left:2px;right:2px;height:24px;`);
       }).join("");
       const eventMarkup = eventsByDateAndTime[dayIndex].get(time) || "";
       const marker = date === dateKey(now) && currentMinute >= minute && currentMinute < rowEnd
