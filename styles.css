@@ -767,3 +767,216 @@ html[data-theme="dark"] .close-button,
 html[data-theme="dark"] .small-button,
 html[data-theme="dark"] .filter-chip.active { background: #304333; color: #dce8d7; }
 html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 8px;
+  left: 8px;
+  padding: 10px 14px;
+  transform: translateY(-160%);
+  border-radius: 6px;
+  background: #fffefa;
+  color: #233d2a;
+}
+.skip-link:focus { transform: translateY(0); }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+:focus-visible { outline: 3px solid #285f3a; outline-offset: 2px; }
+.workweek-scroll { overflow-x: auto; overscroll-behavior-inline: contain; }
+.workweek-calendar { min-width: 720px; }
+.workweek-header-row,
+.workweek-row {
+  display: grid;
+  grid-template-columns: 54px 100px repeat(5, minmax(112px, 1fr));
+}
+.workweek-header-row { position: sticky; z-index: 8; top: 0; }
+.workweek-row { position: relative; min-height: var(--row-height); }
+.workweek-header-cell,
+.workweek-grid-time,
+.workweek-activity,
+.workweek-cell {
+  min-width: 0;
+  border: 1px solid #e8ebdf;
+  margin-right: -1px;
+  margin-bottom: -1px;
+}
+.workweek-header-cell { position: relative; z-index: 8; background: #f7f8f2; }
+.workweek-grid-time { display: block; min-height: var(--row-height); padding: 7px 4px; background: #fbfcf8; }
+.workweek-activity { display: flex; align-items: flex-start; min-height: var(--row-height); padding: 7px 6px; background: #fffefa; }
+.workweek-cell {
+  position: relative;
+  min-height: var(--row-height);
+  padding: 2px;
+  overflow: visible;
+  background: #fffefa;
+}
+.workweek-cell:nth-child(odd) { background: #fffefa; }
+.agenda-cell-add {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  width: 100%;
+  min-height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.agenda-cell-add:hover { background: #f4f7f1; }
+.routine-event-button {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  width: auto;
+  min-height: 22px;
+  padding: 2px 4px;
+  overflow: hidden;
+  border: 1px solid #dfe7d9;
+  border-radius: 4px;
+  background: #edf2e9;
+  color: #405c47;
+  font-size: 0.5625rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+.workweek-cell .routine-event-button .calendar-event-copy { overflow: hidden; }
+.workweek-cell .routine-event-button .calendar-event-copy strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workweek-agenda-event {
+  position: absolute;
+  z-index: 2;
+  top: 2px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid #d5e0d1;
+  border-radius: 5px;
+  background: #e8f0e5;
+  color: #405c47;
+  box-shadow: 0 1px 4px #405c471c;
+}
+.workweek-agenda-event .calendar-event-time { font-size: 0.625rem; line-height: 1.2; }
+.workweek-agenda-event .calendar-event-copy { overflow: visible; }
+.workweek-agenda-event .calendar-event-copy strong { font-size: 0.625rem; }
+.workweek-agenda-event .calendar-event-copy small { font-size: 0.5625rem; }
+.event-move-button,
+.task-move-button {
+  display: inline-grid;
+  min-width: 28px;
+  min-height: 28px;
+  flex: 0 0 28px;
+  place-items: center;
+  padding: 2px;
+  border: 1px solid #c9d6c3;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #36583d;
+  font: inherit;
+  cursor: pointer;
+}
+.event-move-button { align-self: flex-start; font-size: 0.5625rem; }
+.task-move-button { font-size: 0.875rem; line-height: 1; }
+.workweek-task-layer {
+  position: relative;
+  z-index: 5;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  pointer-events: none;
+}
+.workweek-task-layer > * { pointer-events: auto; }
+.workweek-task-layer .agenda-slot-task { padding: 2px 3px; border: 1px solid #dce5d6; border-radius: 4px; background: #f7f9f4; }
+.agenda-slot-task label { align-items: center; }
+.agenda-slot-task input { width: 18px; height: 18px; flex-basis: 18px; }
+.agenda-slot-task span { font-size: 0.6875rem; }
+.agenda-add-row {
+  display: block;
+  width: 100%;
+  min-height: 24px;
+  padding: 0;
+  border: 1px dashed transparent;
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+}
+.agenda-add-row:hover { border-color: #cbd7c5; background: #f8faf6; }
+.agenda-add-row:focus-visible { border-color: #285f3a; }
+.agenda-now-marker {
+  position: absolute;
+  z-index: 7;
+  right: 0;
+  left: 0;
+  height: 0;
+  border-top: 2px solid #fff;
+  pointer-events: none;
+}
+.agenda-range-toggle {
+  display: block;
+  min-height: 32px;
+  padding: 5px 10px;
+  margin: 8px auto;
+  border: 1px solid #dce5d6;
+  border-radius: 7px;
+  background: #f7f8f2;
+  color: #405c47;
+  font: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.agenda-entry-kind { display: flex; flex-wrap: wrap; gap: 14px; padding: 9px 11px; border: 1px solid #e3e9dc; border-radius: 8px; }
+.agenda-entry-kind legend { padding: 0 4px; color: #59685a; font-size: 0.75rem; font-weight: 700; }
+.agenda-entry-kind label { display: flex; min-height: 28px; align-items: center; gap: 7px; cursor: pointer; }
+.agenda-entry-kind input { width: 18px; height: 18px; accent-color: #527553; }
+.agenda-entry-privacy {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 10px;
+  border: 1px solid #e3e9dc;
+  border-radius: 8px;
+  background: #f0f5ed;
+  color: #4e674f;
+  text-align: left;
+  cursor: pointer;
+}
+.agenda-entry-privacy svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.agenda-entry-privacy span { font-size: 0.75rem; }
+.month-event { min-height: 24px; }
+.month-event .task-move-button,
+.month-event .event-move-button { min-width: 24px; min-height: 24px; flex-basis: 24px; }
+.toast-region { max-width: min(420px, calc(100vw - 32px)); }
+
+html[data-theme="dark"] .workweek-grid-time,
+html[data-theme="dark"] .workweek-activity,
+html[data-theme="dark"] .workweek-cell { border-color: #39443b; background: #222b24; }
+html[data-theme="dark"] .workweek-header-cell { border-color: #39443b; background: #222b24; }
+html[data-theme="dark"] .routine-event-button,
+html[data-theme="dark"] .workweek-agenda-event { border-color: #465744; background: #304333; color: #dce8d7; }
+html[data-theme="dark"] .workweek-task-layer .agenda-slot-task { border-color: #465744; background: #29352b; color: #dce8d7; }
+html[data-theme="dark"] .agenda-add-row:hover,
+html[data-theme="dark"] .agenda-cell-add:hover { background: #29352b; }
+html[data-theme="dark"] .agenda-entry-kind { border-color: #39443b; }
+html[data-theme="dark"] .agenda-entry-kind legend { color: #e5e9e2; }
+html[data-theme="dark"] .agenda-entry-privacy,
+html[data-theme="dark"] .agenda-range-toggle { border-color: #39443b; background: #2a342b; color: #d5ddd2; }
+html[data-theme="dark"] .event-move-button,
+html[data-theme="dark"] .task-move-button { border-color: #465744; background: #222b24; color: #dce8d7; }
+
+@media (max-width: 560px) {
+  .workweek-calendar { min-width: 720px; }
+  .agenda-entry-kind { align-items: flex-start; flex-direction: column; gap: 4px; }
+}
