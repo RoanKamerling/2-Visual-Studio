@@ -1269,6 +1269,16 @@ document.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches('input[name="kind"][form]') || event.target.matches('form[data-form="agenda-entry"] input[name="kind"]')) {
+    const form = event.target.closest('form[data-form="agenda-entry"]');
+    const isEvent = event.target.value === "event";
+    form.querySelectorAll("[data-agenda-event-fields]").forEach((field) => {
+      field.hidden = !isEvent;
+    });
+    const endTime = form.querySelector("#agenda-entry-end-time");
+    endTime.required = isEvent;
+    return;
+  }
   if (event.target.matches("[data-agenda-slot-task]")) {
     const slot = agendaSlots.find((item) => item.date === event.target.dataset.agendaSlotDate && item.time === event.target.dataset.agendaSlotTime);
     const task = slot?.tasks[Number(event.target.dataset.agendaSlotTask)];
