@@ -1018,7 +1018,7 @@ html[data-theme="dark"] .todo-schedule-button { border-color: #465744; backgroun
   .agenda-entry-kind { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
 @media (max-width: 760px) {
-  .main-area .page-content { padding: 25px 17px 20px; }
+  .main-area .page-content { padding: 25px 17px 20px !important; }
   .agenda-layout,
   .agenda-layout > .panel { width: 100%; min-width: 0; }
   .calendar-toolbar { min-width: 0; }
