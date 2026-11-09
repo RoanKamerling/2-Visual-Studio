@@ -902,7 +902,8 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
 }
 .workweek-task-layer > * { pointer-events: auto; }
 .workweek-task-layer .agenda-slot-task { padding: 2px 3px; border: 1px solid #dce5d6; border-radius: 4px; background: #f7f9f4; }
-.agenda-slot-task label { align-items: center; }
+.workweek-task-layer .agenda-slot-task { flex-wrap: wrap; }
+.workweek-task-layer .agenda-slot-task label { flex: 1 1 100%; align-items: center; }
 .agenda-slot-task input { width: 18px; height: 18px; flex-basis: 18px; }
 .agenda-slot-task span { font-size: 0.6875rem; }
 .agenda-add-row {
@@ -917,6 +918,36 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
 }
 .agenda-add-row:hover { border-color: #cbd7c5; background: #f8faf6; }
 .agenda-add-row:focus-visible { border-color: #285f3a; }
+.task-delete-button,
+.todo-delete-button {
+  display: inline-grid;
+  min-width: 24px;
+  min-height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  padding: 1px;
+  border: 1px solid #c9d6c3;
+  border-radius: 5px;
+  background: #fffefa;
+  color: #36583d;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.task-delete-button { opacity: 0; }
+.task-delete-button:focus-visible { opacity: 1; }
+.todo-schedule-button {
+  min-height: 28px;
+  padding: 3px 6px;
+  border: 1px solid #c9d6c3;
+  border-radius: 5px;
+  background: #f7f9f4;
+  color: #36583d;
+  font: inherit;
+  font-size: 0.5625rem;
+  cursor: pointer;
+}
 .agenda-now-marker {
   position: absolute;
   z-index: 7;
@@ -977,7 +1008,10 @@ html[data-theme="dark"] .agenda-entry-kind legend { color: #e5e9e2; }
 html[data-theme="dark"] .agenda-entry-privacy,
 html[data-theme="dark"] .agenda-range-toggle { border-color: #39443b; background: #2a342b; color: #d5ddd2; }
 html[data-theme="dark"] .event-move-button,
-html[data-theme="dark"] .task-move-button { border-color: #465744; background: #222b24; color: #dce8d7; }
+html[data-theme="dark"] .task-move-button,
+html[data-theme="dark"] .task-delete-button,
+html[data-theme="dark"] .todo-delete-button,
+html[data-theme="dark"] .todo-schedule-button { border-color: #465744; background: #222b24; color: #dce8d7; }
 
 @media (max-width: 560px) {
   .workweek-calendar { min-width: 720px; }
