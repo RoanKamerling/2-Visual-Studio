@@ -196,6 +196,27 @@ function safeDate(value, options = { day: "numeric", month: "short" }) {
   return new Intl.DateTimeFormat("nl-NL", options).format(date);
 }
 
+function minutesForTime(time) {
+  const [hours, minutes] = String(time).split(":").map(Number);
+  return Number.isFinite(hours) && Number.isFinite(minutes) ? hours * 60 + minutes : NaN;
+}
+
+function timeForMinutes(minutes) {
+  const normalized = ((minutes % 1440) + 1440) % 1440;
+  return `${String(Math.floor(normalized / 60)).padStart(2, "0")}:${String(normalized % 60).padStart(2, "0")}`;
+}
+
+function agendaItemEndTime(item) {
+  const start = minutesForTime(item.time);
+  const end = minutesForTime(item.endTime);
+  return Number.isFinite(end) && end > start ? item.endTime : timeForMinutes(start + 30);
+}
+
+function agendaItemIsPast(item, now = new Date()) {
+  const date = new Date(`${item.date}T${agendaItemEndTime(item)}:00`);
+  return date.getTime() <= now.getTime();
+}
+
 function toast(message) {
   const element = document.createElement("div");
   element.className = "toast";
@@ -407,7 +428,6 @@ function agendaItemsForDate(date) {
       ...savedSlots.map((slot) => slot.time),
     ]);
     items.push(...[...slotTimes]
-      .filter((time) => savedSlots.some((slot) => slot.time === time) || !items.some((item) => !item.routine && item.time === time))
       .map((time) => ({
         date: key,
         time,
@@ -419,10 +439,10 @@ function agendaItemsForDate(date) {
         private: true,
       })));
   }
-  return items.sort((a, b) => a.time.localeCompare(b.time));
+  return items.sort((a, b) => a.time.localeCompare(b.time) || Number(b.slot) - Number(a.slot));
 }
 
-function agendaEventMarkup(item, compact = false, showTime = true) {
+function agendaEventMarkup(item, compact = false, showTime = true, workweekStyle = "") {
   const routine = item.routine;
   const completed = !routine && Boolean(item.done);
   if (item.slot) {
@@ -436,9 +456,9 @@ function agendaEventMarkup(item, compact = false, showTime = true) {
   if (routine) {
     return `<button class="calendar-event routine-event routine-event-button ${compact ? "compact" : ""}" type="button" data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)} op ${safeDate(item.date, { weekday: "long", day: "numeric", month: "long" })}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span><span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong></span>` : ""}</button>`;
   }
-  return `<div class="calendar-event planned-event ${item.type === "Workshop" ? "amber" : ""} ${completed ? "completed" : ""} ${compact ? "compact" : ""}" draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">
+  return `<div class="calendar-event planned-event ${item.type === "Workshop" ? "amber" : ""} ${completed ? "completed" : ""} ${!completed && agendaItemIsPast(item) ? "past-agenda-event" : ""} ${workweekStyle ? "workweek-agenda-event" : ""} ${compact ? "compact" : ""}" ${workweekStyle ? `style="${workweekStyle}"` : ""} draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">
     <input type="checkbox" data-agenda-done="${item.index}" aria-label="${completed ? "Markeer als niet afgerond" : "Markeer als afgerond"}" ${completed ? "checked" : ""}>
-    ${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span>` : ""}<span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type)} · ${item.private ? "Privé" : "Gedeeld met je coach"}</small></span>
+    ${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))}</span>` : ""}<span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type)} · ${item.private ? "Privé" : "Gedeeld met je coach"}</small></span>
   </div>`;
 }
 
@@ -450,19 +470,130 @@ function renderAgendaWorkweek() {
     return date;
   });
   const itemsByDate = dates.map(agendaItemsForDate);
-  const times = [...new Set(itemsByDate.flatMap((items) => items.map((item) => item.time)))].sort();
-  return `<div class="workweek-calendar" role="table" aria-label="Werkweekagenda"><div class="workweek-row workweek-header" role="row"><span role="columnheader">Tijd</span><span role="columnheader">Activiteit</span>${dates.map((date) => `<span role="columnheader"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}</div>${times.map((time) => {
+  const now = new Date();
+  const todayIsVisible = dates.some((date) => dateKey(date) === dateKey(now));
+  const agendaEventsByDate = dates.map((date) => agendaItems
+    .map((item, index) => ({ ...item, index }))
+    .filter((item) => item.date === dateKey(date)));
+  const taskTimesByDate = itemsByDate.map((items) => items
+    .filter((item) => item.slot && item.tasks.length)
+    .map((item) => minutesForTime(item.time)));
+  const boundaries = [9 * 60, 15 * 60];
+  for (const events of agendaEventsByDate) {
+    for (const item of events) boundaries.push(minutesForTime(item.time), minutesForTime(agendaItemEndTime(item)));
+  }
+  for (const items of itemsByDate) {
+    for (const item of items) boundaries.push(minutesForTime(item.time));
+  }
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
+  const startMinute = Math.floor(Math.min(...boundaries, ...(todayIsVisible ? [currentMinute] : [])) / 15) * 15;
+  const endMinute = Math.max(...boundaries, ...(todayIsVisible ? [currentMinute] : []));
+  const endTick = Math.ceil(endMinute / 15) * 15;
+  const timesSet = new Set();
+  for (let minute = startMinute; minute <= endTick + 15; minute += 15) timesSet.add(timeForMinutes(minute));
+  for (const value of boundaries) timesSet.add(timeForMinutes(value));
+  const times = [...timesSet].sort((a, b) => minutesForTime(a) - minutesForTime(b));
+  const rowHeights = times.slice(0, -1).map((time, index) => {
+    const timeMinute = minutesForTime(time);
+    const rowItems = itemsByDate.map((items) => items.find((item) => item.time === time));
+    const taskCount = Math.max(0, ...rowItems.map((item) => item?.slot ? item.tasks.length : 0));
+    const hasRoutine = rowItems.some((item) => item?.routine);
+    const minimumHeight = taskCount ? Math.max(34, 20 + taskCount * 19) : hasRoutine ? 28 : 0;
+    return Math.max(minimumHeight, 6, (minutesForTime(times[index + 1]) - timeMinute) * 1.2);
+  });
+  const rowLines = new Map(times.map((time, index) => [time, index + 2]));
+  const gridRows = `auto ${rowHeights.map((height) => `minmax(${height}px, auto)`).join(" ")}`;
+
+  const eventLayoutsByDate = agendaEventsByDate.map((events, dayIndex) => {
+    const sorted = events.map((item) => ({
+      item,
+      start: minutesForTime(item.time),
+      end: minutesForTime(agendaItemEndTime(item)),
+    })).sort((a, b) => a.start - b.start || a.end - b.end);
+    let group = [];
+    let laneEnds = [];
+    let groupEnd = -Infinity;
+    const layoutEvent = (entry) => {
+      const lane = laneEnds.findIndex((end) => end <= entry.start);
+      entry.lane = lane < 0 ? laneEnds.length : lane;
+      laneEnds[entry.lane] = entry.end;
+      group.push(entry);
+      groupEnd = Math.max(groupEnd, entry.end);
+    };
+    const finishGroup = () => {
+      const overlapsTask = group.some((entry) => taskTimesByDate[dayIndex]
+        .some((taskMinute) => taskMinute >= entry.start && taskMinute < entry.end));
+      const laneCount = laneEnds.length;
+      const totalLanes = laneCount + (overlapsTask ? 1 : 0);
+      group.forEach((entry) => {
+        entry.laneCount = totalLanes;
+      });
+      group = [];
+      laneEnds = [];
+      groupEnd = -Infinity;
+    };
+    for (const entry of sorted) {
+      if (group.length && entry.start >= groupEnd) finishGroup();
+      layoutEvent(entry);
+    }
+    if (group.length) finishGroup();
+    return sorted.map((entry) => entry);
+  });
+  const eventLayers = eventLayoutsByDate.map((events, dayIndex) => events.map(({ item, start, end, lane, laneCount }) => {
+      const startLine = rowLines.get(timeForMinutes(start));
+      const endLine = rowLines.get(timeForMinutes(end));
+      const width = 100 / laneCount;
+      const style = `grid-column:${dayIndex + 3};grid-row:${startLine} / ${endLine};--event-width:${width}%;--event-offset:${lane * width}%;`;
+      return agendaEventMarkup(item, false, true, style);
+    }).join("")).join("");
+
+  const gridCells = times.slice(0, -1).map((time, rowIndex) => {
     const routine = dailyAgendaSchedule.find((item) => item.time === time);
     const activity = routine?.title === "Dagafsluiting"
       ? `<span class="activity-label-full">Dagafsluiting</span><span class="activity-label-compact">Dag-afsluiting</span>`
       : routine?.title === "Dagstart"
         ? `<span class="activity-label-full">Dagstart</span><span class="activity-label-compact">Dag-start</span>`
         : routine ? escapeHtml(routine.title) : "";
-    return `<div class="workweek-row ${routine ? "fixed-time-row" : ""} ${routine?.title === "Thuis" ? "home-time-row" : ""}" role="row"><time role="rowheader">${escapeHtml(time)}</time><div class="workweek-activity" role="cell">${activity}</div>${itemsByDate.map((items, dayIndex) => {
+    const row = rowLines.get(time);
+    const activityClass = `workweek-activity${routine ? " fixed-time-cell" : ""}${routine?.title === "Thuis" ? " home-time-cell" : ""}`;
+    const activityCell = `<div class="${activityClass}" role="cell" style="grid-column:2;grid-row:${row}">${activity}</div>`;
+    const dayCells = itemsByDate.map((items, dayIndex) => {
       const routineItem = items.find((item) => item.routine && item.time === time);
-      return `<div class="workweek-cell" role="cell" data-agenda-drop-target="${dateKey(dates[dayIndex])}" data-drop-time="${time}">${routineItem ? agendaEventMarkup(routineItem, true, false) : ""}${items.filter((item) => item.time === time && !item.routine).map((item) => agendaEventMarkup(item, true, false)).join("")}</div>`;
-    }).join("")}</div>`;
-  }).join("")}</div>`;
+      const slot = items.find((item) => item.slot && item.time === time);
+      const isHome = routine?.title === "Thuis";
+      const cellClass = `workweek-cell${routineItem ? " fixed-time-cell" : ""}${isHome ? " home-time-cell" : ""}${slot ? " has-planning-slot" : ""}`;
+      const overlappingEvents = agendaEventsByDate[dayIndex].filter((item) => {
+        const start = minutesForTime(item.time);
+        const end = minutesForTime(agendaItemEndTime(item));
+        return start < minutesForTime(times[rowIndex + 1]) && end > minutesForTime(time);
+      });
+      const taskOverlaps = slot?.tasks.length && overlappingEvents.length;
+      const taskLaneCount = taskOverlaps
+        ? Math.max(...overlappingEvents.map((item) => eventLayoutsByDate[dayIndex].find((entry) => entry.item.index === item.index)?.laneCount || 1))
+        : 1;
+      const taskWidth = 100 / taskLaneCount;
+      const taskStyle = taskOverlaps
+        ? `style="--task-width:${taskWidth}%;--task-offset:${(taskLaneCount - 1) * taskWidth}%"`
+        : "";
+      const slotMarkup = slot ? agendaEventMarkup(slot, true, false) : "";
+      return `<div class="${cellClass}" role="cell" style="grid-column:${dayIndex + 3};grid-row:${row}" data-agenda-drop-target="${dateKey(dates[dayIndex])}" data-drop-time="${time}">${routineItem ? agendaEventMarkup(routineItem, true, false) : ""}${slotMarkup ? `<div class="workweek-slot-layer ${taskOverlaps ? "task-overlaps-event" : overlappingEvents.length ? "overlaps-agenda-event" : ""}" ${taskStyle}>${slotMarkup}</div>` : ""}</div>`;
+    }).join("");
+    const timeCell = `<time class="workweek-grid-time" role="rowheader" style="grid-column:1;grid-row:${row}">${escapeHtml(time)}</time>`;
+    return `${timeCell}${activityCell}${dayCells}`;
+  }).join("");
+  let nowMarker = "";
+  if (todayIsVisible && currentMinute >= minutesForTime(times[0]) && currentMinute < minutesForTime(times[times.length - 1])) {
+    const rowIndex = times.findIndex((time, index) => minutesForTime(time) <= currentMinute && currentMinute < minutesForTime(times[index + 1] || "00:00"));
+    if (rowIndex >= 0) {
+      const start = minutesForTime(times[rowIndex]);
+      const end = minutesForTime(times[rowIndex + 1]);
+      const progress = (currentMinute - start) / (end - start);
+      const dayIndex = dates.findIndex((date) => dateKey(date) === dateKey(now));
+      nowMarker = `<div class="agenda-now-marker" aria-hidden="true" style="grid-column:${dayIndex + 3};grid-row:${rowIndex + 2};--now-offset:${progress * rowHeights[rowIndex]}px"></div>`;
+    }
+  }
+  const headers = `<span class="workweek-header-cell" role="columnheader" style="grid-column:1;grid-row:1">Tijd</span><span class="workweek-header-cell" role="columnheader" style="grid-column:2;grid-row:1">Activiteit</span>${dates.map((date, index) => `<span class="workweek-header-cell" role="columnheader" style="grid-column:${index + 3};grid-row:1"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}`;
+  return `<div class="workweek-calendar" role="table" aria-label="Werkweekagenda" style="grid-template-rows:${gridRows}">${headers}${gridCells}${eventLayers}${nowMarker}</div>`;
 }
 
 function renderAgendaDays() {
@@ -487,7 +618,7 @@ function renderAgendaMonth() {
       ? item.tasks.map((task, index) => `<label class="month-event planned" draggable="true" data-agenda-drag-task="${index}" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><input type="checkbox" data-agenda-slot-date="${item.date}" data-agenda-slot-time="${item.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}><span>${escapeHtml(item.time)} ${escapeHtml(task.text)}</span></label>`).join("")
       : item.routine
         ? `<button class="month-event routine" type="button" data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)}">${escapeHtml(item.time)} ${escapeHtml(item.title)}</button>`
-        : `<label class="month-event ${item.type === "Workshop" ? "amber" : "planned"}" draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><input type="checkbox" data-agenda-done="${item.index}" aria-label="Markeer ${escapeHtml(item.title)} als ${item.done ? "niet afgerond" : "afgerond"}" ${item.done ? "checked" : ""}><span>${escapeHtml(item.time)} ${escapeHtml(item.title)}</span></label>`).join("")}${events.length > 3 ? `<button class="month-more" type="button" data-action="agenda-select-day" data-date="${dateKey(date)}">+${events.length - 3} meer</button>` : ""}</div>`;
+        : `<label class="month-event ${item.type === "Workshop" ? "amber" : "planned"} ${!item.done && agendaItemIsPast(item) ? "past-agenda-event" : ""}" draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><input type="checkbox" data-agenda-done="${item.index}" aria-label="Markeer ${escapeHtml(item.title)} als ${item.done ? "niet afgerond" : "afgerond"}" ${item.done ? "checked" : ""}><span>${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))} ${escapeHtml(item.title)}</span></label>`).join("")}${events.length > 3 ? `<button class="month-more" type="button" data-action="agenda-select-day" data-date="${dateKey(date)}">+${events.length - 3} meer</button>` : ""}</div>`;
   });
   return `<div class="month-calendar"><div class="month-weekdays">${["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"].map((day) => `<span>${day}</span>`).join("")}</div><div class="month-grid">${dates.join("")}</div></div>`;
 }
@@ -601,8 +732,9 @@ function openChallengeModal(existingId = "") {
 }
 
 function openEventModal(type = "", date = dateKey(agendaDate), time = "13:00") {
+  const endTime = timeForMinutes(minutesForTime(time) + 30);
   modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle"><div class="modal-head"><div><h2 id="eventModalTitle">Plan een moment</h2><p>Voeg een challenge-moment, afspraak of andere gebeurtenis toe aan je agenda.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Venster sluiten">×</button></div>
-  <form data-form="event"><div class="form-grid"><div class="field full"><label for="event-title">Wat ga je doen? *</label><input id="event-title" name="title" required maxlength="100" value="${type === "Coachgesprek" ? "Coachgesprek met Marit" : ""}"></div><div class="field"><label for="event-date">Datum *</label><input id="event-date" name="date" type="date" required value="${date}"></div><div class="field"><label for="event-time">Tijd *</label><input id="event-time" name="time" type="time" required value="${time}"></div><div class="field full"><label for="event-type">Soort moment</label><select id="event-type" name="type"><option ${type === "Challenge" ? "selected" : ""}>Challenge</option><option ${type === "Coachgesprek" ? "selected" : ""}>Coachgesprek</option><option ${type === "Workshop" ? "selected" : ""}>Workshop</option><option ${type === "Anders" ? "selected" : ""}>Anders</option></select></div><div class="field full"><span class="field-label">Zichtbaarheid</span><label class="visibility-choice"><input type="checkbox" name="private"><span><strong>Alleen zichtbaar voor mij</strong><small>Vink aan om dit moment privé te houden. Anders kan je coach het zien.</small></span></label></div><div class="field full"><label class="visibility-choice reminder-choice"><input type="checkbox" name="reminder" checked><span><strong>Herinnering sturen</strong><small>De herinnering verschijnt in het meldingenmenu van dit prototype.</small></span></label></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Toevoegen</button></div></form></section></div>`;
+  <form data-form="event"><div class="form-grid"><div class="field full"><label for="event-title">Wat ga je doen? *</label><input id="event-title" name="title" required maxlength="100" value="${type === "Coachgesprek" ? "Coachgesprek met Marit" : ""}"></div><div class="field"><label for="event-date">Datum *</label><input id="event-date" name="date" type="date" required value="${date}"></div><div class="field"><label for="event-time">Begintijd *</label><input id="event-time" name="time" type="time" required value="${time}"></div><div class="field"><label for="event-end-time">Eindtijd *</label><input id="event-end-time" name="endTime" type="time" required value="${endTime}"></div><div class="field full"><label for="event-type">Soort moment</label><select id="event-type" name="type"><option ${type === "Challenge" ? "selected" : ""}>Challenge</option><option ${type === "Coachgesprek" ? "selected" : ""}>Coachgesprek</option><option ${type === "Workshop" ? "selected" : ""}>Workshop</option><option ${type === "Anders" ? "selected" : ""}>Anders</option></select></div><div class="field full"><span class="field-label">Zichtbaarheid</span><label class="visibility-choice"><input type="checkbox" name="private"><span><strong>Alleen zichtbaar voor mij</strong><small>Vink aan om dit moment privé te houden. Anders kan je coach het zien.</small></span></label></div><div class="field full"><label class="visibility-choice reminder-choice"><input type="checkbox" name="reminder" checked><span><strong>Herinnering sturen</strong><small>De herinnering verschijnt in het meldingenmenu van dit prototype.</small></span></label></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Toevoegen</button></div></form></section></div>`;
   document.querySelector("#event-title").focus();
 }
 
@@ -905,7 +1037,13 @@ document.addEventListener("submit", (event) => {
   }
 
   if (form.dataset.form === "event") {
-    const item = { date: String(data.get("date")), time: String(data.get("time")), title: String(data.get("title")).trim(), type: String(data.get("type")), private: data.has("private"), done: false, reminder: data.has("reminder"), reminderRead: false };
+    const time = String(data.get("time"));
+    const endTime = String(data.get("endTime"));
+    if (minutesForTime(endTime) <= minutesForTime(time)) {
+      toast("De eindtijd moet na de begintijd liggen.");
+      return;
+    }
+    const item = { date: String(data.get("date")), time, endTime, title: String(data.get("title")).trim(), type: String(data.get("type")), private: data.has("private"), done: false, reminder: data.has("reminder"), reminderRead: false };
     agendaItems.push(item);
     save("agora-agenda", agendaItems);
     if (item.type === "Coachgesprek") {
@@ -1090,8 +1228,22 @@ document.addEventListener("dragend", (event) => {
   if (trash) trash.hidden = true;
 });
 
+function agendaDropTargetAtPoint(event) {
+  const workweek = event.target.closest(".workweek-calendar");
+  if (workweek) {
+    const cell = [...workweek.querySelectorAll(".workweek-cell[data-agenda-drop-target]")]
+      .find((target) => {
+        const bounds = target.getBoundingClientRect();
+        return event.clientX >= bounds.left && event.clientX < bounds.right
+          && event.clientY >= bounds.top && event.clientY < bounds.bottom;
+      });
+    if (cell) return cell;
+  }
+  return event.target.closest(".workweek-cell[data-agenda-drop-target]") || event.target.closest("[data-agenda-drop-target]");
+}
+
 document.addEventListener("dragover", (event) => {
-  const agendaTarget = event.target.closest(".workweek-cell[data-agenda-drop-target]") || event.target.closest("[data-agenda-drop-target]");
+  const agendaTarget = agendaDropTargetAtPoint(event);
   const todoTarget = event.target.closest("[data-todo-drop]");
   const trashTarget = event.target.closest("[data-todo-trash]");
   const agendaDrag = event.dataTransfer.types.includes("application/x-agora-agenda-task");
@@ -1118,7 +1270,7 @@ document.addEventListener("dragleave", (event) => {
 });
 
 document.addEventListener("drop", (event) => {
-  const agendaTarget = event.target.closest(".workweek-cell[data-agenda-drop-target]") || event.target.closest("[data-agenda-drop-target]");
+  const agendaTarget = agendaDropTargetAtPoint(event);
   const todoTarget = event.target.closest("[data-todo-drop]");
   const trashTarget = event.target.closest("[data-todo-trash]");
   if (trashTarget && event.dataTransfer.types.includes("application/x-agora-todo")) {
@@ -1176,9 +1328,15 @@ document.addEventListener("drop", (event) => {
     const date = agendaTarget.dataset.agendaDropTarget;
     const time = agendaTarget.dataset.dropTime;
     if (!item || (item.date === date && item.time === time)) return;
+    if (item.type === "Workshop" && !window.confirm(`Weet je zeker dat je de workshop "${item.title}" wilt verplaatsen?`)) {
+      toast("De workshop is niet verplaatst.");
+      return;
+    }
     const [movedItem] = agendaItems.splice(index, 1);
+    const duration = minutesForTime(agendaItemEndTime(movedItem)) - minutesForTime(movedItem.time);
     movedItem.date = date;
     movedItem.time = time;
+    movedItem.endTime = timeForMinutes(minutesForTime(time) + duration);
     agendaItems.push(movedItem);
     if (isWeekday(item.date) && !agendaItems.some((agendaItem) => agendaItem.date === item.date && agendaItem.time === item.time)) {
       getAgendaSlot(item.date, item.time);

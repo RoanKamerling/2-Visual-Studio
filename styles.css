@@ -262,28 +262,44 @@ h1 { margin-bottom: 8px; font-size: clamp(1.625rem, 3vw, 2.125rem); line-height:
 .calendar-event.compact input { grid-column: 1; grid-row: 1 / span 2; }
 .calendar-event.compact .calendar-event-time { grid-column: 2; }
 .calendar-event.compact .calendar-event-copy { grid-column: 1 / -1; }
-.workweek-calendar { overflow-x: auto; }
-.workweek-row { display: grid; grid-template-columns: 38px minmax(56px, .8fr) repeat(5, minmax(68px, 1fr)); min-width: 434px; border-bottom: 1px solid #e8ebdf; }
-.workweek-row > time, .workweek-row > span:first-child { padding: 9px 5px; color: #647160; font-size: 0.5625rem; font-weight: 700; }
-.workweek-header { position: sticky; top: 0; z-index: 1; background: #f7f8f2; }
-.workweek-header > span { display: flex; flex-direction: column; gap: 3px; border-left: 1px solid #e8ebdf; text-transform: capitalize; }
-.workweek-header > span:nth-child(2) { color: #647160; font-size: 0.5625rem; font-weight: 700; }
-.workweek-header > span strong { color: #405c47; font-size: 0.625rem; }
-.workweek-header > span small { color: #7a8576; font-size: 0.5625rem; font-weight: 400; }
-.workweek-activity { container-type: inline-size; padding: 8px 4px; border-left: 1px solid #e8ebdf; color: #66735f; font-size: 0.5625rem; font-weight: 600; overflow-wrap: anywhere; }
+.workweek-calendar { position: relative; display: grid; grid-template-columns: 38px minmax(56px, .8fr) repeat(5, minmax(68px, 1fr)); min-width: 434px; overflow-x: auto; isolation: isolate; }
+.workweek-header-cell { position: sticky; top: 0; z-index: 6; display: flex; min-width: 0; flex-direction: column; gap: 3px; padding: 8px 5px; border-bottom: 1px solid #e8ebdf; border-left: 1px solid #e8ebdf; background: #f7f8f2; text-transform: capitalize; }
+.workweek-header-cell:first-child { color: #647160; font-size: 0.5625rem; font-weight: 700; }
+.workweek-header-cell strong { color: #405c47; font-size: 0.625rem; }
+.workweek-header-cell small { color: #7a8576; font-size: 0.5625rem; font-weight: 400; }
+.workweek-grid-time { position: relative; z-index: 0; padding: 4px 3px; border-bottom: 1px solid #e8ebdf; color: #647160; font-size: 0.5625rem; font-weight: 700; white-space: nowrap; }
+.workweek-activity { position: relative; z-index: 0; container-type: inline-size; display: flex; align-items: center; min-width: 0; padding: 3px 4px; border-bottom: 1px solid #e8ebdf; border-left: 1px solid #e8ebdf; color: #66735f; font-size: 0.5625rem; font-weight: 600; overflow-wrap: anywhere; }
 .activity-label-compact { display: none; }
 @container (max-width: 72px) {
   .activity-label-full { display: none; }
   .activity-label-compact { display: inline; }
 }
-.workweek-cell { min-width: 0; min-height: 42px; padding: 3px; border-left: 1px solid #e8ebdf; background: #fffefa; }
+.workweek-cell { position: relative; z-index: 0; min-width: 0; padding: 2px; border-bottom: 1px solid #e8ebdf; border-left: 1px solid #e8ebdf; background: #fffefa; }
 .workweek-cell:empty { background: #f7f8f4; }
-.workweek-cell .calendar-event.compact { grid-template-columns: auto minmax(0, 1fr); }
+.workweek-cell.fixed-time-cell, .workweek-activity.fixed-time-cell { background: #edf2e9; }
+.workweek-cell.home-time-cell, .workweek-activity.home-time-cell { background: #fffefa; }
+.workweek-cell.has-planning-slot { z-index: 3; background: transparent; pointer-events: none; }
+.workweek-slot-layer { position: relative; z-index: 1; width: var(--task-width, 100%); margin-left: var(--task-offset, 0); pointer-events: auto; }
+.workweek-slot-layer .planning-slot { width: 100%; }
+.workweek-slot-layer .planning-slot.empty-slot { border-color: transparent; background: transparent; }
+.workweek-slot-layer.task-overlaps-event .planning-slot.empty-slot { border-color: #cbd7c5; background: #fbfcf8; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task { position: relative; padding-right: 15px; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task label { gap: 3px; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task input { width: 11px; height: 11px; flex-basis: 11px; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task span { font-size: 0.5rem; line-height: 1.2; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task .agenda-task-privacy { position: absolute; top: 0; right: 0; width: 14px; height: 14px; padding: 1px; }
+.workweek-slot-layer.task-overlaps-event .agenda-slot-task .agenda-task-privacy svg { width: 12px; height: 12px; }
 .planning-slot.compact .planning-slot-content { grid-column: 1 / -1; }
-.workweek-row.fixed-time-row .workweek-activity, .workweek-row.fixed-time-row .workweek-cell { background: #edf2e9; }
-.workweek-row.fixed-time-row .workweek-cell { min-height: 30px; padding: 2px 3px; }
-.workweek-row.fixed-time-row .routine-event-button { min-height: 24px; padding: 2px; }
-.workweek-row.fixed-time-row .workweek-activity { display: flex; align-items: center; padding: 3px 4px; }
+.workweek-cell .routine-event-button { min-height: 24px; padding: 2px; }
+.workweek-agenda-event { position: relative; z-index: 2; justify-self: start; align-self: stretch; width: var(--event-width, 100%); min-width: 0; min-height: 0; padding: 3px; margin-left: var(--event-offset, 0); overflow: hidden; border: 1px solid #d5e0d1; box-shadow: 0 1px 4px #405c471c; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
+.workweek-agenda-event input { grid-column: 1; grid-row: 1 / span 2; }
+.workweek-agenda-event .calendar-event-time { grid-column: 2; grid-row: 1; font-size: 0.5rem; overflow-wrap: anywhere; }
+.workweek-agenda-event .calendar-event-copy { grid-column: 2; grid-row: 2; overflow: hidden; }
+.workweek-agenda-event .calendar-event-copy strong { margin: 0; font-size: 0.5rem; }
+.workweek-agenda-event .calendar-event-copy small { font-size: 0.4375rem; }
+.planned-event.past-agenda-event { background: #e4efe1; color: #59715a; border-color: #d3e2cf; }
+.planned-event.past-agenda-event .calendar-event-time, .planned-event.past-agenda-event .calendar-event-copy small { color: #71856f; }
+.agenda-now-marker { position: relative; z-index: 5; align-self: start; width: 100%; height: 0; border-top: 2px solid #fff; pointer-events: none; transform: translateY(var(--now-offset)); }
 .planning-slot { background: #f2f5ee; color: #4c644b; }
 .planning-slot.empty-slot { border: 1px dashed #cbd7c5; background: #fbfcf8; }
 .planning-slot-content { display: grid; align-content: start; gap: 5px; min-width: 0; width: 100%; }
@@ -703,12 +719,12 @@ html[data-theme="dark"] .workweek-header { background-color: #222b24; }
 html[data-theme="dark"] .month-day.outside-month { background-color: #1b231d; }
 html[data-theme="dark"] .calendar-navigation h2,
 html[data-theme="dark"] .calendar-day-column h3 strong,
-html[data-theme="dark"] .workweek-header > span strong { color: #dce8d7; }
+html[data-theme="dark"] .workweek-header-cell strong { color: #dce8d7; }
 html[data-theme="dark"] .calendar-day-column h3,
 html[data-theme="dark"] .calendar-legend,
 html[data-theme="dark"] .month-weekdays,
-html[data-theme="dark"] .workweek-row > time,
-html[data-theme="dark"] .workweek-row > span:first-child,
+html[data-theme="dark"] .workweek-grid-time,
+html[data-theme="dark"] .workweek-header-cell,
 html[data-theme="dark"] .workweek-activity { color: #b7c1b4; }
 html[data-theme="dark"] .calendar-event,
 html[data-theme="dark"] .routine-event,
@@ -716,6 +732,18 @@ html[data-theme="dark"] .planning-slot,
 html[data-theme="dark"] .month-event { background-color: #304333; color: #dce8d7; }
 html[data-theme="dark"] .planned-event.amber,
 html[data-theme="dark"] .month-event.amber { background-color: #493b28; color: #f0d7a8; }
+html[data-theme="dark"] .planned-event.past-agenda-event { background-color: #2b3c2d; color: #d5e4d1; border-color: #3e5540; }
+html[data-theme="dark"] .planned-event.past-agenda-event .calendar-event-time,
+html[data-theme="dark"] .planned-event.past-agenda-event .calendar-event-copy small { color: #a9bea4; }
+html[data-theme="dark"] .workweek-cell.fixed-time-cell,
+html[data-theme="dark"] .workweek-activity.fixed-time-cell { background: #29352b; }
+html[data-theme="dark"] .workweek-cell.home-time-cell,
+html[data-theme="dark"] .workweek-cell.has-planning-slot { background: transparent; }
+html[data-theme="dark"] .workweek-activity.home-time-cell { background: #202922; }
+html[data-theme="dark"] .workweek-header-cell { background: #222b24; border-color: #39443b; }
+html[data-theme="dark"] .workweek-cell { border-color: #39443b; }
+html[data-theme="dark"] .workweek-slot-layer .planning-slot.empty-slot { background: transparent; border-color: transparent; }
+html[data-theme="dark"] .workweek-slot-layer.task-overlaps-event .planning-slot.empty-slot { background: #202922; border-color: #53644f; }
 html[data-theme="dark"] .routine-event-button,
 html[data-theme="dark"] .calendar-day-column,
 html[data-theme="dark"] .month-day.outside-month { color: #c4cdc0; }
