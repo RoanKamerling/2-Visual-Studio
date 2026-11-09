@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f5f4ec">
+    <meta name="description" content="Een groene, persoonlijke plek voor leren, challenges en groei bij LC Agora.">
+    <title>Agora — groeien op jouw manier</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" id="sidebar">
+        <a class="brand" href="#" data-route="home" aria-label="Agora startpagina">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none"><path d="M24 5 8 25h10l-6 10h24l-7-10h10L24 5Z" fill="currentColor"/><path d="M24 31v12" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+          </span>
+          <span><strong>agora</strong><small>LC Agora</small></span>
+        </a>
+        <p class="nav-label">JOUW PLEK</p>
+        <nav class="primary-nav" aria-label="Hoofdnavigatie">
+          <a href="#" class="nav-link active" data-route="home"><span class="nav-icon">⌂</span> Overzicht</a>
+          <a href="#" class="nav-link" data-route="challenges"><span class="nav-icon">✳</span> Challenges <span class="nav-count">2</span></a>
+          <a href="#" class="nav-link" data-route="workshops"><span class="nav-icon">♧</span> Workshops</a>
+          <a href="#" class="nav-link" data-route="inspiration"><span class="nav-icon">✧</span> Inspiratie</a>
+          <a href="#" class="nav-link" data-route="agenda"><span class="nav-icon">▦</span> Agenda</a>
+          <a href="#" class="nav-link" data-route="coaching"><span class="nav-icon">♡</span> Coach & feedback</a>
+          <a href="#" class="nav-link" data-route="messages"><span class="nav-icon">☏</span> Berichten <span class="nav-dot"></span></a>
+          <a href="#" class="nav-link" data-route="portfolio"><span class="nav-icon">◈</span> Groeiportfolio</a>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="coach-card">
+            <span class="coach-avatar">M</span>
+            <span><strong>Marit de Vries</strong><small>Jouw coach</small></span>
+            <span class="online-dot" aria-label="online"></span>
+          </div>
+          <button class="profile-button" type="button" aria-label="Profiel bekijken">
+            <span class="student-avatar">S</span>
+            <span><strong>Sam Jansen</strong><small>Leerling · Agora 2</small></span>
+            <span class="profile-chevron">⌄</span>
+          </button>
+        </div>
+      </aside>
+
+      <main class="main-area">
+        <header class="topbar">
+          <button class="mobile-menu" type="button" id="menuToggle" aria-label="Menu openen">☰</button>
+          <div class="breadcrumb"><span>LC Agora</span><span class="crumb-separator">/</span><strong id="pageLabel">Overzicht</strong></div>
+          <div class="topbar-actions">
+            <span class="demo-badge"><span></span> Prototype</span>
+            <button class="icon-button notification-button" type="button" aria-label="Meldingen" aria-expanded="false" data-action="toggle-notifications">♧<i></i><span class="notification-count" id="notificationCount" hidden></span></button>
+            <button class="help-button" type="button" data-route="portfolio">? <span>Hulp</span></button>
+          </div>
+        </header>
+        <div id="app" class="page-content" tabindex="-1"></div>
+        <footer class="footer-note">Een plek om te ontdekken, te proberen en te groeien <span>✦</span></footer>
+      </main>
+    </div>
+    <div id="notificationPanel" class="notification-panel" hidden></div>
+    <div id="modalRoot"></div>
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  </body>
+</html>
