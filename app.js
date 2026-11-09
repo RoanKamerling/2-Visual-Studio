@@ -741,7 +741,7 @@ function openChallengeModal(existingId = "") {
 }
 
 function openEventModal(type = "", date = dateKey(agendaDate), time = "13:00") {
-  openAgendaEntryModal(date, time, "event", type);
+  openAgendaEntryModal(date, time, "event", type, false);
 }
 
 function openAgendaEntryModal(date, time, selectedKind = "task", eventType = "", allowTask = true) {
