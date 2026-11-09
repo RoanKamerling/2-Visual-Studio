@@ -482,7 +482,10 @@ function renderAgendaWorkweek() {
   }
   for (const items of itemsByDate) {
     for (const item of items) {
-      if (item.slot && item.tasks.length) contentBoundaries.push(minutesForTime(item.time), minutesForTime(item.time) + 30);
+      if (item.slot && item.tasks.length) {
+        const slotStart = floorHalfHour(minutesForTime(item.time));
+        contentBoundaries.push(slotStart, slotStart + 30);
+      }
     }
   }
   const earliest = contentBoundaries.length ? Math.min(...contentBoundaries) : 9 * 60;
