@@ -841,6 +841,16 @@ document.addEventListener("click", (event) => {
     agendaTaskPrivacy.innerHTML = eyeIcon(isPrivate);
     return;
   }
+  const agendaEntryPrivacy = event.target.closest("[data-new-agenda-entry-privacy]");
+  if (agendaEntryPrivacy) {
+    const isPrivate = agendaEntryPrivacy.getAttribute("aria-pressed") !== "true";
+    agendaEntryPrivacy.setAttribute("aria-pressed", String(isPrivate));
+    agendaEntryPrivacy.setAttribute("aria-label", `${isPrivate ? "Privé" : "Openbaar"}; wijzig zichtbaarheid`);
+    agendaEntryPrivacy.title = isPrivate ? "Privé" : "Openbaar";
+    agendaEntryPrivacy.querySelector("span").textContent = isPrivate ? "Privé, alleen zichtbaar voor jou" : "Openbaar, gedeeld met je coach";
+    agendaEntryPrivacy.querySelector("svg").outerHTML = eyeIcon(isPrivate);
+    return;
+  }
   const privacyToggle = event.target.closest("[data-privacy-toggle]");
   if (privacyToggle) {
     const todo = todos[Number(privacyToggle.dataset.privacyToggle)];
@@ -862,6 +872,16 @@ document.addEventListener("click", (event) => {
   const trashButton = event.target.closest("[data-todo-trash]");
   if (trashButton) return;
   const action = event.target.closest("[data-action]");
+  if (action?.dataset.action === "toggle-agenda-earlier") {
+    agendaShowEarlier = !agendaShowEarlier;
+    render();
+    return;
+  }
+  if (action?.dataset.action === "toggle-agenda-later") {
+    agendaShowLater = !agendaShowLater;
+    render();
+    return;
+  }
   if (action?.dataset.action === "agenda-view") {
     agendaView = action.dataset.view;
     render();
@@ -947,10 +967,20 @@ document.addEventListener("click", (event) => {
     openEventModal("", action.dataset.date, action.dataset.time);
     return;
   }
+  if (action.dataset.action === "add-agenda-entry") {
+    openAgendaEntryModal(action.dataset.date, action.dataset.time);
+    return;
+  }
   if (action.dataset.action === "add-agenda-slot-task") {
-    activeAgendaSlot = `${action.dataset.date}-${action.dataset.time}`;
-    render();
-    document.querySelector(`[data-form="agenda-slot"][data-date="${action.dataset.date}"][data-time="${action.dataset.time}"] input[name="task"]`)?.focus();
+    openAgendaEntryModal(action.dataset.date, action.dataset.time);
+    return;
+  }
+  if (action.dataset.action === "move-agenda-task") {
+    openAgendaMoveModal("task", action.dataset.date, action.dataset.time, Number(action.dataset.index));
+    return;
+  }
+  if (action.dataset.action === "move-agenda-event") {
+    openAgendaMoveModal("event", agendaItems[Number(action.dataset.index)]?.date, agendaItems[Number(action.dataset.index)]?.time, Number(action.dataset.index));
     return;
   }
   if (action.dataset.action === "close-modal") closeModal();
