@@ -455,7 +455,7 @@ function agendaEventMarkup(item, compact = false, showTime = true, workweekStyle
     return `<div class="calendar-event planning-slot ${item.tasks.length ? "has-tasks" : "empty-slot"} ${compact ? "compact" : ""}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span>` : ""}<div class="planning-slot-content">${tasks}${addTask}</div></div>`;
   }
   if (routine) {
-    return `<button class="calendar-event routine-event routine-event-button ${compact ? "compact" : ""}" type="button" data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)} op ${safeDate(item.date, { weekday: "long", day: "numeric", month: "long" })}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span><span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong></span>` : ""}</button>`;
+    return `<button class="calendar-event routine-event routine-event-button ${compact ? "compact" : ""}" type="button" ${workweekStyle ? `style="${workweekStyle}"` : ""} data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)} op ${safeDate(item.date, { weekday: "long", day: "numeric", month: "long" })}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span><span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong></span>` : ""}</button>`;
   }
   return `<div class="calendar-event planned-event ${item.type === "Workshop" ? "amber" : ""} ${completed ? "completed" : ""} ${!completed && agendaItemIsPast(item) ? "past-agenda-event" : ""} ${workweekStyle ? "workweek-agenda-event" : ""} ${compact ? "compact" : ""}" ${workweekStyle ? `style="${workweekStyle}"` : ""} draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">
     ${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))}</span>` : ""}<span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type)} · ${item.private ? "Privé" : "Gedeeld met je coach"}</small></span><button class="event-move-button" type="button" data-action="move-agenda-event" data-index="${item.index}" aria-label="Verplaats ${escapeHtml(item.title)}">Verplaatsen</button>
@@ -471,7 +471,6 @@ function renderAgendaWorkweek() {
   });
   const itemsByDate = dates.map(agendaItemsForDate);
   const now = new Date();
-  const todayIsVisible = dates.some((date) => dateKey(date) === dateKey(now));
   const agendaEventsByDate = dates.map((date) => agendaItems
     .map((item, index) => ({ ...item, index }))
     .filter((item) => item.date === dateKey(date)));
@@ -585,7 +584,10 @@ function renderAgendaWorkweek() {
         ? `<div class="workweek-task-layer">${tasks.map((entry) => entry.markup).join("")}${slots.map((slot) => `<button class="agenda-add-row" type="button" data-action="add-agenda-entry" data-date="${date}" data-time="${slot.time}" aria-label="Taak of gebeurtenis toevoegen om ${slot.time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`).join("")}</div>`
         : "";
       const cellAdd = `<button class="agenda-cell-add" type="button" data-action="add-agenda-entry" data-date="${date}" data-time="${time}" aria-label="Taak of gebeurtenis toevoegen op ${safeDate(date, { weekday: "long", day: "numeric", month: "long" })} om ${time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`;
-      const routineMarkup = routineItems.map((item) => agendaEventMarkup(item, true, false)).join("");
+      const routineMarkup = routineItems.map((item) => {
+        const offset = (minutesForTime(item.time) - minute) / 30 * rowHeights[rowIndex];
+        return agendaEventMarkup(item, true, false, `top:${offset}px;left:2px;right:2px;height:22px;`);
+      }).join("");
       const eventMarkup = eventsByDateAndTime[dayIndex].get(time) || "";
       const marker = date === dateKey(now) && currentMinute >= minute && currentMinute < rowEnd
         ? `<div class="agenda-now-marker" aria-hidden="true" style="top:${(currentMinute - minute) / 30 * rowHeights[rowIndex]}px"></div>`
