@@ -812,7 +812,9 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
   margin-bottom: -1px;
 }
 .workweek-header-cell { position: relative; z-index: 8; background: #f7f8f2; }
-.workweek-grid-time { display: block; min-height: var(--row-height); padding: 7px 4px; background: #fbfcf8; }
+.workweek-header-cell small { color: #52604f; font-size: 0.6875rem; }
+.workweek-header-cell strong { font-size: 0.75rem; }
+.workweek-grid-time { display: block; min-height: var(--row-height); padding: 7px 4px; background: #fbfcf8; color: #4c594d; font-size: 0.6875rem; }
 .workweek-activity { display: flex; align-items: flex-start; min-height: var(--row-height); padding: 7px 6px; background: #fffefa; }
 .workweek-cell {
   position: relative;
