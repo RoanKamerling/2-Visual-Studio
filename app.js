@@ -984,6 +984,31 @@ document.addEventListener("click", (event) => {
     openAgendaEntryModal(action.dataset.date, action.dataset.time);
     return;
   }
+  if (action.dataset.action === "schedule-todo") {
+    openTodoScheduleModal(action.dataset.id);
+    return;
+  }
+  if (action.dataset.action === "delete-todo") {
+    const todo = todos.find((item) => item.id === action.dataset.id);
+    if (!todo) return;
+    todos = todos.filter((item) => item.id !== todo.id);
+    save("agora-todos", todos);
+    render();
+    toast("To-do verwijderd.");
+    return;
+  }
+  if (action.dataset.action === "delete-agenda-task") {
+    const slot = agendaSlots.find((item) => item.date === action.dataset.date && item.time === action.dataset.time);
+    const [task] = slot?.tasks.splice(Number(action.dataset.index), 1) || [];
+    if (!task) return;
+    if (task.todoId) todos = todos.filter((todo) => todo.id !== task.todoId);
+    save("agora-agenda-slots", agendaSlots);
+    save("agora-todos", todos);
+    render();
+    document.querySelector(`[data-action="add-agenda-entry"][data-date="${action.dataset.date}"][data-time="${action.dataset.time}"]`)?.focus();
+    toast("Taak uit de agenda verwijderd.");
+    return;
+  }
   if (action.dataset.action === "move-agenda-task") {
     openAgendaMoveModal("task", action.dataset.date, action.dataset.time, Number(action.dataset.index));
     return;
