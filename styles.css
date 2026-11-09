@@ -843,7 +843,7 @@ body { min-width: 0; }
   z-index: 1;
   display: flex;
   width: auto;
-  min-height: 22px;
+  min-height: 24px;
   padding: 2px 4px;
   overflow: hidden;
   border: 1px solid #dfe7d9;
@@ -957,6 +957,7 @@ body { min-width: 0; }
   left: 0;
   height: 0;
   border-top: 2px solid #fff;
+  box-shadow: 0 -1px 0 #52664e, 0 1px 0 #52664e;
   pointer-events: none;
 }
 .agenda-range-toggle {
@@ -992,6 +993,7 @@ body { min-width: 0; }
 .agenda-entry-privacy svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .agenda-entry-privacy span { font-size: 0.75rem; }
 .month-event { min-height: 24px; }
+.month-day-select { min-width: 24px; height: 24px; }
 .month-event .task-move-button,
 .month-event .event-move-button { min-width: 24px; min-height: 24px; flex-basis: 24px; }
 .toast-region { max-width: min(420px, calc(100vw - 32px)); }
