@@ -508,6 +508,7 @@ function renderAgendaWorkweek() {
   const taskTimesByDate = itemsByDate.map((items) => items
     .filter((item) => item.slot && item.tasks.length && minutesForTime(item.time) < endMinute && minutesForTime(item.time) + 30 > startMinute)
     .map((item) => minutesForTime(item.time)));
+  const currentMinute = now.getHours() * 60 + now.getMinutes();
   const eventLayoutsByDate = agendaEventsByDate.map((events, dayIndex) => {
     const sorted = visibleEventsByDate[dayIndex].map((item) => ({
       item,
@@ -586,23 +587,18 @@ function renderAgendaWorkweek() {
       const cellAdd = `<button class="agenda-cell-add" type="button" data-action="add-agenda-entry" data-date="${date}" data-time="${time}" aria-label="Taak of gebeurtenis toevoegen op ${safeDate(date, { weekday: "long", day: "numeric", month: "long" })} om ${time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`;
       const routineMarkup = routineItems.map((item) => agendaEventMarkup(item, true, false)).join("");
       const eventMarkup = eventsByDateAndTime[dayIndex].get(time) || "";
-      return `<div class="workweek-cell" role="cell" data-agenda-drop-target="${date}" data-drop-time="${time}">${cellAdd}${routineMarkup}${eventMarkup}${taskContent}</div>`;
+      const marker = date === dateKey(now) && currentMinute >= minute && currentMinute < rowEnd
+        ? `<div class="agenda-now-marker" aria-hidden="true" style="top:${(currentMinute - minute) / 30 * rowHeights[rowIndex]}px"></div>`
+        : "";
+      return `<div class="workweek-cell" role="cell" data-agenda-drop-target="${date}" data-drop-time="${time}">${cellAdd}${routineMarkup}${eventMarkup}${taskContent}${marker}</div>`;
     }).join("");
     const rowHeight = rowHeights[rowIndex];
     return `<div class="workweek-row" role="row" style="--row-height:${rowHeight}px"><time class="workweek-grid-time" role="rowheader">${escapeHtml(time)}</time>${activity}${dayCells}</div>`;
   }).join("");
-  let nowMarker = "";
-  const currentMinute = now.getHours() * 60 + now.getMinutes();
-  if (todayIsVisible && currentMinute >= startMinute && currentMinute < endMinute) {
-    const rowIndex = Math.floor((currentMinute - startMinute) / 30);
-    const progress = (currentMinute - (startMinute + rowIndex * 30)) / 30;
-    const dayIndex = dates.findIndex((date) => dateKey(date) === dateKey(now));
-    nowMarker = `<div class="agenda-now-marker" aria-hidden="true" style="left:calc(${(dayIndex + 2) * 100 / 7}%);top:calc(var(--header-height) + ${rowHeights.slice(0, rowIndex).reduce((sum, value) => sum + value, 0)}px + ${progress * rowHeights[rowIndex]}px);width:calc(100% / 7)"></div>`;
-  }
   const headers = `<div class="workweek-header-row" role="row"><span class="workweek-header-cell" role="columnheader">Tijd</span><span class="workweek-header-cell" role="columnheader">Activiteit</span>${dates.map((date) => `<span class="workweek-header-cell" role="columnheader"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}</div>`;
   const earlierToggle = earlierAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-earlier" aria-expanded="${agendaShowEarlier}">${agendaShowEarlier ? "Verberg tijden vóór 09:00" : `Toon tijden vóór 09:00 (vanaf ${timeForMinutes(floorHalfHour(earliest))})`}</button>` : "";
   const laterToggle = laterAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-later" aria-expanded="${agendaShowLater}">${agendaShowLater ? "Verberg tijden na 15:00" : `Toon tijden na 15:00 (tot ${timeForMinutes(ceilHalfHour(latest))})`}</button>` : "";
-  return `${earlierToggle}<div class="workweek-calendar" role="table" aria-label="Werkweekagenda van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}">${headers}${rows}${nowMarker}</div>${laterToggle}`;
+  return `${earlierToggle}<div class="workweek-calendar" role="table" aria-label="Werkweekagenda van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}">${headers}${rows}</div>${laterToggle}`;
 }
 
 function renderAgendaDays() {
