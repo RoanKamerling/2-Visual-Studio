@@ -792,6 +792,7 @@ html[data-theme="dark"] .theme-toggle:hover { background: #2a342b; }
   border: 0;
 }
 :focus-visible { outline: 3px solid #285f3a; outline-offset: 2px; }
+[hidden] { display: none !important; }
 .workweek-scroll { overflow-x: auto; overscroll-behavior-inline: contain; }
 .workweek-calendar { min-width: 720px; }
 .workweek-header-row,
