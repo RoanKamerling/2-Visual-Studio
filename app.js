@@ -1269,7 +1269,7 @@ document.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("change", (event) => {
-  if (event.target.matches('input[name="kind"][form]') || event.target.matches('form[data-form="agenda-entry"] input[name="kind"]')) {
+  if (event.target.matches('input[name="kind"]') && event.target.closest('form[data-form="agenda-entry"]')) {
     const form = event.target.closest('form[data-form="agenda-entry"]');
     const isEvent = event.target.value === "event";
     form.querySelectorAll("[data-agenda-event-fields]").forEach((field) => {
