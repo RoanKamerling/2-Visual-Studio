@@ -1180,6 +1180,7 @@ document.addEventListener("submit", (event) => {
     }
     closeModal();
     setRoute(activeRoute === "coaching" && item.type === "Coachgesprek" ? "coaching" : "agenda");
+    document.querySelector("#app")?.focus();
     toast(item.type === "Coachgesprek" ? "Je coachgesprek is ingepland." : "Je agenda-item is toegevoegd.");
     return;
   }
