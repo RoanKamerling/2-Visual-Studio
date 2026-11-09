@@ -494,10 +494,12 @@ function renderAgendaWorkweek() {
   const times = Array.from({ length: Math.max(1, (endMinute - startMinute) / 30) }, (_, index) => timeForMinutes(startMinute + index * 30));
   const rowHeights = times.map((time) => {
     const minute = minutesForTime(time);
-    const maxTasks = Math.max(0, ...itemsByDate.flatMap((items) => items
-      .filter((item) => item.slot && floorHalfHour(minutesForTime(item.time)) === minute)
-      .map((item) => item.tasks.length)));
-    return Math.max(48, 30 + maxTasks * 22);
+    const maxSlotContent = Math.max(0, ...itemsByDate.map((items) => {
+      const slots = items.filter((item) => item.slot && floorHalfHour(minutesForTime(item.time)) === minute && item.tasks.length);
+      const taskCount = slots.reduce((sum, slot) => sum + slot.tasks.length, 0);
+      return taskCount * 24 + slots.length * 24;
+    }));
+    return Math.max(48, 34 + maxSlotContent);
   });
   const visibleEventsByDate = agendaEventsByDate.map((events) => events.filter((item) => {
     const start = minutesForTime(item.time);
@@ -1121,6 +1123,7 @@ document.addEventListener("submit", (event) => {
       addAgendaSlotTask(date, time, title, "", isPrivate);
       closeModal();
       render();
+      document.querySelector(`[data-action="add-agenda-entry"][data-date="${date}"][data-time="${time}"]`)?.focus();
       toast("Taak aan je agenda toegevoegd.");
       return;
     }
@@ -1173,6 +1176,7 @@ document.addEventListener("submit", (event) => {
       save("agora-agenda-slots", agendaSlots);
       closeModal();
       render();
+      document.querySelector(`[data-action="add-agenda-entry"][data-date="${destinationDate}"][data-time="${destinationTime}"]`)?.focus();
       toast("Taak naar het gekozen moment verplaatst.");
       return;
     }
@@ -1189,6 +1193,7 @@ document.addEventListener("submit", (event) => {
     save("agora-agenda", agendaItems);
     closeModal();
     render();
+    document.querySelector(`[data-action="move-agenda-event"][data-index="${index}"]`)?.focus();
     toast("Agenda-item naar het gekozen moment verplaatst.");
     return;
   }
