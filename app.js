@@ -1114,6 +1114,87 @@ document.addEventListener("submit", (event) => {
     toast(item.type === "Coachgesprek" ? "Je coachgesprek is ingepland." : "Je agenda-item is toegevoegd.");
   }
 
+  if (form.dataset.form === "agenda-entry") {
+    const date = form.dataset.date;
+    const time = form.dataset.time;
+    const title = String(data.get("title")).trim();
+    const isPrivate = form.querySelector("[data-new-agenda-entry-privacy]").getAttribute("aria-pressed") === "true";
+    if (data.get("kind") === "task") {
+      addAgendaSlotTask(date, time, title, "", isPrivate);
+      closeModal();
+      render();
+      toast("Taak aan je agenda toegevoegd.");
+      return;
+    }
+    const endTime = String(data.get("endTime"));
+    if (minutesForTime(endTime) <= minutesForTime(time)) {
+      toast("De eindtijd moet na de begintijd liggen.");
+      form.querySelector("#agenda-entry-end-time").focus();
+      return;
+    }
+    const item = { date, time, endTime, title, type: String(data.get("eventType")), private: isPrivate, done: false, reminder: data.has("reminder"), reminderRead: false };
+    agendaItems.push(item);
+    save("agora-agenda", agendaItems);
+    if (item.type === "Coachgesprek") {
+      notifications.unshift({ id: `session-${Date.now()}`, title: "Coachgesprek gepland", text: `${item.title} · ${safeDate(item.date, { day: "numeric", month: "short" })} om ${item.time}`, route: "coaching", read: false });
+      save("agora-notifications", notifications);
+    }
+    closeModal();
+    setRoute(activeRoute === "coaching" && item.type === "Coachgesprek" ? "coaching" : "agenda");
+    toast(item.type === "Coachgesprek" ? "Je coachgesprek is ingepland." : "Je agenda-item is toegevoegd.");
+    return;
+  }
+
+  if (form.dataset.form === "agenda-move") {
+    const kind = form.dataset.kind;
+    const sourceDate = form.dataset.date;
+    const sourceTime = form.dataset.time;
+    const index = Number(form.dataset.index);
+    const destinationDate = String(data.get("date"));
+    const destinationTime = String(data.get("time"));
+    if (kind === "task") {
+      if (!isWeekday(destinationDate)) {
+        toast("Taken kunnen alleen op een werkdag worden ingepland.");
+        form.querySelector("#agenda-move-date").focus();
+        return;
+      }
+      const sourceSlot = agendaSlots.find((slot) => slot.date === sourceDate && slot.time === sourceTime);
+      const [task] = sourceSlot?.tasks.splice(index, 1) || [];
+      if (!task) {
+        toast("Deze taak kon niet worden gevonden.");
+        closeModal();
+        render();
+        return;
+      }
+      let destinationSlot = agendaSlots.find((slot) => slot.date === destinationDate && slot.time === destinationTime);
+      if (!destinationSlot) {
+        destinationSlot = { date: destinationDate, time: destinationTime, tasks: [] };
+        agendaSlots.push(destinationSlot);
+      }
+      destinationSlot.tasks.push(task);
+      save("agora-agenda-slots", agendaSlots);
+      closeModal();
+      render();
+      toast("Taak naar het gekozen moment verplaatst.");
+      return;
+    }
+    const item = agendaItems[index];
+    if (!item) {
+      toast("Dit agenda-item kon niet worden gevonden.");
+      closeModal();
+      render();
+      return;
+    }
+    if (item.type === "Workshop" && !window.confirm(`Wil je de workshop "${item.title}" verplaatsen?`)) return;
+    const duration = minutesForTime(agendaItemEndTime(item)) - minutesForTime(item.time);
+    agendaItems[index] = { ...item, date: destinationDate, time: destinationTime, endTime: timeForMinutes(minutesForTime(destinationTime) + duration) };
+    save("agora-agenda", agendaItems);
+    closeModal();
+    render();
+    toast("Agenda-item naar het gekozen moment verplaatst.");
+    return;
+  }
+
   if (form.dataset.form === "todo") {
     const isPrivate = form.querySelector("[data-new-todo-privacy]").getAttribute("aria-pressed") === "true";
     todos.push({ id: `todo-${Date.now()}`, text: String(data.get("text")).trim(), done: false, private: isPrivate });
