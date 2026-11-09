@@ -150,7 +150,6 @@ let notifications = loadSaved("agora-notifications", [
   { id: "coach-welcome", title: "Een tip van Marit", text: "Mooie start! Vergeet ook te noteren waarom je juist deze planten kiest.", route: "challenge:moestuin", read: false },
 ]);
 let todoDragActive = false;
-let activeAgendaSlot = null;
 let activeRoute = "home";
 let activeFilter = "Alles";
 let notificationsOpen = false;
@@ -984,10 +983,6 @@ document.addEventListener("click", (event) => {
     openAgendaEntryModal(action.dataset.date, action.dataset.time);
     return;
   }
-  if (action.dataset.action === "add-agenda-slot-task") {
-    openAgendaEntryModal(action.dataset.date, action.dataset.time);
-    return;
-  }
   if (action.dataset.action === "schedule-todo") {
     openTodoScheduleModal(action.dataset.id);
     return;
@@ -1268,16 +1263,6 @@ document.addEventListener("submit", (event) => {
     save("agora-todos", todos);
     render();
     toast("Taak toegevoegd aan je persoonlijke lijst.");
-  }
-
-  if (form.dataset.form === "agenda-slot") {
-    const date = form.dataset.date;
-    const time = form.dataset.time;
-    const isPrivate = form.querySelector("[data-new-agenda-task-privacy]").getAttribute("aria-pressed") === "true";
-    addAgendaSlotTask(date, time, String(data.get("task")).trim(), "", isPrivate);
-    activeAgendaSlot = null;
-    render();
-    toast("Taak aan dit vrije moment toegevoegd.");
   }
 
   if (form.dataset.form === "log") {
