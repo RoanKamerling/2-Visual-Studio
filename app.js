@@ -3,6 +3,11 @@ const modalRoot = document.querySelector("#modalRoot");
 const toastRegion = document.querySelector("#toastRegion");
 const pageLabel = document.querySelector("#pageLabel");
 const sidebar = document.querySelector("#sidebar");
+const appShell = document.querySelector(".app-shell");
+const menuToggle = document.querySelector("#menuToggle");
+const mobileMenuToggle = document.querySelector("#mobileMenuToggle");
+const sidebarClose = document.querySelector("#sidebarClose");
+const sidebarBackdrop = document.querySelector("#sidebarBackdrop");
 const themeToggle = document.querySelector("#themeToggle");
 
 function setTheme(theme) {
@@ -15,6 +20,25 @@ function setTheme(theme) {
 }
 
 setTheme(localStorage.getItem("agora-theme") || "light");
+appShell.classList.toggle("sidebar-collapsed", localStorage.getItem("agora-sidebar-collapsed") === "true");
+
+function syncNavigationMenu() {
+  const isMobile = window.matchMedia("(max-width: 760px)").matches;
+  const isCollapsed = appShell.classList.contains("sidebar-collapsed");
+  const isOpen = sidebar.classList.contains("open");
+  const desktopLabel = `Navigatiemenu ${isCollapsed ? "uitklappen" : "inklappen"}`;
+  const mobileLabel = `Navigatiemenu ${isOpen ? "sluiten" : "openen"}`;
+  menuToggle.setAttribute("aria-expanded", String(!isCollapsed));
+  menuToggle.setAttribute("aria-label", desktopLabel);
+  menuToggle.title = desktopLabel;
+  mobileMenuToggle.setAttribute("aria-expanded", String(isOpen));
+  mobileMenuToggle.setAttribute("aria-label", mobileLabel);
+  mobileMenuToggle.title = mobileLabel;
+  sidebarClose.hidden = !isMobile || !isOpen;
+  sidebarBackdrop.hidden = !isMobile || !isOpen;
+}
+
+syncNavigationMenu();
 
 const worlds = [
   "Artistieke wereld",
@@ -145,6 +169,18 @@ let agendaItems = loadSaved("agora-agenda", [
   { date: "2026-11-13", time: "14:00", title: "Werktijd podcast", type: "Challenge", private: true },
 ]);
 let agendaSlots = loadSaved("agora-agenda-slots", []);
+const workdayOrder = [1, 2, 3, 4, 5, 6, 0];
+const storedProfileSettings = loadSaved("agora-profile-settings", { workdays: [1, 2, 3, 4, 5], defaultAgendaView: "workweek" });
+const savedProfileSettings = storedProfileSettings && typeof storedProfileSettings === "object" && !Array.isArray(storedProfileSettings)
+  ? storedProfileSettings
+  : {};
+const savedWorkdays = Array.isArray(savedProfileSettings.workdays)
+  ? [...new Set(savedProfileSettings.workdays.map(Number).filter((day) => Number.isInteger(day) && day >= 0 && day <= 6))]
+  : [1, 2, 3, 4, 5];
+let profileSettings = {
+  workdays: (savedWorkdays.length ? savedWorkdays : [1, 2, 3, 4, 5]).sort((a, b) => workdayOrder.indexOf(a) - workdayOrder.indexOf(b)),
+  defaultAgendaView: ["day", "workweek", "week"].includes(savedProfileSettings.defaultAgendaView) ? savedProfileSettings.defaultAgendaView : "workweek",
+};
 let workshopSignups = loadSaved("agora-workshops", []);
 let notifications = loadSaved("agora-notifications", [
   { id: "coach-welcome", title: "Een tip van Marit", text: "Mooie start! Vergeet ook te noteren waarom je juist deze planten kiest.", route: "challenge:moestuin", read: false },
@@ -154,10 +190,11 @@ let activeRoute = "home";
 let activeFilter = "Alles";
 let notificationsOpen = false;
 let selectedChallengeImage = "";
-let agendaView = "workweek";
+let agendaEventResize = null;
+let agendaView = profileSettings.defaultAgendaView;
 let agendaDate = new Date();
-let agendaShowEarlier = false;
-let agendaShowLater = false;
+let agendaStartMinute = 9 * 60;
+let agendaEndMinute = 15 * 60 + 30;
 let modalReturnFocus = null;
 let chatMessages = [
   { text: "Hoi Sam! Hoe gaat het met je moestuinplan?", own: false },
@@ -228,9 +265,13 @@ function toast(message) {
 }
 
 function setRoute(route) {
+  if (route.split(":")[0] === "agenda" && activeRoute.split(":")[0] !== "agenda") {
+    agendaView = profileSettings.defaultAgendaView;
+  }
   activeRoute = route;
   notificationsOpen = false;
   sidebar.classList.remove("open");
+  syncNavigationMenu();
   render();
   document.querySelector("#app").focus({ preventScroll: true });
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -370,7 +411,7 @@ function agendaPage() {
     ? renderAgendaYear()
     : agendaView === "month"
       ? renderAgendaMonth()
-      : agendaView === "workweek"
+      : agendaView === "workweek" || agendaView === "week"
         ? renderAgendaWorkweek()
       : renderAgendaDays();
   return `<div class="page-heading"><div><p class="eyebrow">Ruimte voor jouw plannen</p><h1>Agenda</h1><p>Plan taken in de vrije momenten en vink ze af zodra je klaar bent.</p></div><div class="heading-actions"><button class="secondary-button" type="button" data-action="new-coaching">♡ Coachgesprek</button><button class="primary-button" type="button" data-action="new-event"><span class="icon-plus">＋</span> Agenda-item</button></div></div>
@@ -382,12 +423,22 @@ function eyeIcon(isPrivate) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.2-6 9.5-6 9.5 6 9.5 6-3.2 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.8"></circle>${isPrivate ? `<path d="M3 3l18 18"></path>` : ""}</svg>`;
 }
 
+function agendaEventTypeClass(type) {
+  const classes = {
+    Challenge: "event-challenge",
+    Coachgesprek: "event-coaching",
+    Workshop: "event-workshop",
+    Anders: "event-other",
+  };
+  return classes[type] || "event-other";
+}
+
 const dailyAgendaSchedule = [
   { time: "09:00", title: "Dagstart" },
   { time: "10:40", title: "Pauze + lezen" },
   { time: "12:45", title: "Pauze" },
   { time: "14:30", title: "Dagafsluiting" },
-  { time: "14:45", title: "Thuis" },
+  { time: "15:00", title: "Thuis" },
 ];
 
 const agendaPlanningTimes = ["09:30", "11:35", "13:15", "14:45"];
@@ -405,14 +456,26 @@ function startOfWeek(date) {
   return monday;
 }
 
+function orderedWorkdays() {
+  return workdayOrder.filter((day) => profileSettings.workdays.includes(day));
+}
+
 function agendaRangeTitle() {
   if (agendaView === "day") return safeDate(dateKey(agendaDate), { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   if (agendaView === "month") return safeDate(dateKey(agendaDate), { month: "long", year: "numeric" });
   if (agendaView === "year") return String(agendaDate.getFullYear());
   const first = startOfWeek(agendaDate);
   const last = new Date(first);
-  last.setDate(first.getDate() + (agendaView === "workweek" ? 4 : 6));
-  const firstLabel = safeDate(dateKey(first), { day: "numeric", month: "short" });
+  let rangeStart = first;
+  if (agendaView === "workweek") {
+    const days = orderedWorkdays();
+    rangeStart = new Date(first);
+    rangeStart.setDate(first.getDate() + (days[0] === 0 ? 6 : days[0] - 1));
+    last.setDate(first.getDate() + (days[days.length - 1] === 0 ? 6 : days[days.length - 1] - 1));
+  } else {
+    last.setDate(first.getDate() + 6);
+  }
+  const firstLabel = safeDate(dateKey(rangeStart), { day: "numeric", month: "short" });
   const lastLabel = safeDate(dateKey(last), { day: "numeric", month: "short", year: "numeric" });
   return `${firstLabel} – ${lastLabel}`;
 }
@@ -422,7 +485,7 @@ function agendaItemsForDate(date) {
   const items = agendaItems
     .map((item, index) => ({ ...item, index, routine: false }))
     .filter((item) => item.date === key);
-  if (date.getDay() >= 1 && date.getDay() <= 5) {
+  if (isWorkday(key)) {
     items.push(...dailyAgendaSchedule.map((item) => ({ ...item, date: key, routine: true, private: false })));
     const savedSlots = agendaSlots.filter((slot) => slot.date === key);
     const slotTimes = new Set([
@@ -448,23 +511,31 @@ function agendaEventMarkup(item, compact = false, showTime = true, workweekStyle
   const routine = item.routine;
   const completed = !routine && Boolean(item.done);
   if (item.slot) {
-    const tasks = item.tasks.map((task, index) => `<div class="agenda-slot-task ${task.done ? "done" : ""}" draggable="true" data-agenda-drag-task="${index}" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><label><input type="checkbox" data-agenda-slot-date="${item.date}" data-agenda-slot-time="${item.time}" data-agenda-slot-task="${index}" ${task.done ? "checked" : ""}><span>${escapeHtml(task.text)}</span></label><button class="privacy-toggle agenda-task-privacy" type="button" data-agenda-task-privacy="${index}" data-date="${item.date}" data-time="${item.time}" aria-label="${task.private ? "Maak openbaar" : "Maak privé"}: ${escapeHtml(task.text)}" title="${task.private ? "Privé" : "Openbaar"}">${eyeIcon(Boolean(task.private))}</button><button class="task-move-button" type="button" data-action="move-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verplaats taak: ${escapeHtml(task.text)}">↗</button><button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`).join("");
+    const tasks = item.tasks.map((task, index) => `<div class="agenda-slot-task ${task.done ? "done" : ""}" draggable="true" data-agenda-drag-task="${index}" data-agenda-detail-kind="task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><label class="agenda-task-check"><input type="checkbox" data-agenda-slot-date="${item.date}" data-agenda-slot-time="${item.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}></label><button class="agenda-item-details" type="button" data-action="agenda-item-details" data-kind="task" data-date="${item.date}" data-time="${item.time}" data-index="${index}">${escapeHtml(task.text)}</button><button class="privacy-toggle agenda-task-privacy" type="button" data-agenda-task-privacy="${index}" data-date="${item.date}" data-time="${item.time}" aria-label="${task.private ? "Maak openbaar" : "Maak privé"}: ${escapeHtml(task.text)}" title="${task.private ? "Privé" : "Openbaar"}">${eyeIcon(Boolean(task.private))}</button><button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`).join("");
     const addTask = `<button class="agenda-add-row" type="button" data-action="add-agenda-entry" data-date="${item.date}" data-time="${item.time}" aria-label="Taak of gebeurtenis toevoegen om ${item.time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`;
     return `<div class="calendar-event planning-slot ${item.tasks.length ? "has-tasks" : "empty-slot"} ${compact ? "compact" : ""}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span>` : ""}<div class="planning-slot-content">${tasks}${addTask}</div></div>`;
   }
   if (routine) {
     return `<button class="calendar-event routine-event routine-event-button ${compact ? "compact" : ""}" type="button" ${workweekStyle ? `style="${workweekStyle}"` : ""} data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)} op ${safeDate(item.date, { weekday: "long", day: "numeric", month: "long" })}">${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}</span><span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong></span>` : ""}</button>`;
   }
-  return `<div class="calendar-event planned-event ${item.type === "Workshop" ? "amber" : ""} ${completed ? "completed" : ""} ${!completed && agendaItemIsPast(item) ? "past-agenda-event" : ""} ${workweekStyle ? "workweek-agenda-event" : ""} ${compact ? "compact" : ""}" ${workweekStyle ? `style="${workweekStyle}"` : ""} draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">
-    ${showTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))}</span>` : ""}<span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type)} · ${item.private ? "Privé" : "Gedeeld met je coach"}</small></span><button class="event-move-button" type="button" data-action="move-agenda-event" data-index="${item.index}" aria-label="Verplaats ${escapeHtml(item.title)}">Verplaatsen</button>
+  const endTime = agendaItemEndTime(item);
+  const showEventTime = showTime && minutesForTime(endTime) - minutesForTime(item.time) !== 30;
+  const startMinute = minutesForTime(item.time);
+  const endMinute = minutesForTime(endTime);
+  const resizeHandles = workweekStyle
+    ? `${startMinute >= agendaStartMinute ? `<button class="agenda-event-resize-handle resize-start" type="button" data-agenda-resize-edge="start" data-agenda-resize-index="${item.index}" aria-label="Begintijd van ${escapeHtml(item.title)} aanpassen, nu ${escapeHtml(item.time)}. Gebruik de pijltjestoetsen om kwartieren te wijzigen." aria-keyshortcuts="ArrowUp ArrowDown" title="Sleep om de begintijd te wijzigen; pijl omhoog of omlaag wijzigt 15 minuten"></button>` : ""}${endMinute <= agendaEndMinute ? `<button class="agenda-event-resize-handle resize-end" type="button" data-agenda-resize-edge="end" data-agenda-resize-index="${item.index}" aria-label="Eindtijd van ${escapeHtml(item.title)} aanpassen, nu ${escapeHtml(endTime)}. Gebruik de pijltjestoetsen om kwartieren te wijzigen." aria-keyshortcuts="ArrowUp ArrowDown" title="Sleep om de eindtijd te wijzigen; pijl omhoog of omlaag wijzigt 15 minuten"></button>` : ""}`
+    : "";
+  return `<div class="calendar-event planned-event ${agendaEventTypeClass(item.type)} ${item.type === "Workshop" ? "amber" : ""} ${completed ? "completed" : ""} ${!completed && agendaItemIsPast(item) ? "past-agenda-event" : ""} ${workweekStyle ? "workweek-agenda-event" : ""} ${compact ? "compact" : ""}" ${workweekStyle ? `style="${workweekStyle}"` : ""} draggable="true" data-agenda-drag-event="${item.index}" data-agenda-detail-kind="event" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}">
+    <button class="agenda-item-details" type="button" data-action="agenda-item-details" data-kind="event" data-index="${item.index}">${showEventTime ? `<span class="calendar-event-time">${escapeHtml(item.time)}–${escapeHtml(endTime)}</span>` : ""}<span class="calendar-event-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.type)} · ${item.private ? "Privé" : "Gedeeld met je coach"}</small></span></button>${item.private ? `<span class="agenda-private-indicator" aria-hidden="true" title="Privé agenda-item">${eyeIcon(true)}</span>` : ""}${resizeHandles}
   </div>`;
 }
 
 function renderAgendaWorkweek() {
   const first = startOfWeek(agendaDate);
-  const dates = Array.from({ length: 5 }, (_, index) => {
+  const dayNumbers = agendaView === "workweek" ? orderedWorkdays() : workdayOrder;
+  const dates = dayNumbers.map((day) => {
     const date = new Date(first);
-    date.setDate(first.getDate() + index);
+    date.setDate(first.getDate() + (day === 0 ? 6 : day - 1));
     return date;
   });
   const itemsByDate = dates.map(agendaItemsForDate);
@@ -473,25 +544,8 @@ function renderAgendaWorkweek() {
     .map((item, index) => ({ ...item, index }))
     .filter((item) => item.date === dateKey(date)));
   const floorHalfHour = (minute) => Math.floor(minute / 30) * 30;
-  const ceilHalfHour = (minute) => Math.ceil(minute / 30) * 30;
-  const contentBoundaries = [];
-  for (const events of agendaEventsByDate) {
-    for (const item of events) contentBoundaries.push(minutesForTime(item.time), minutesForTime(agendaItemEndTime(item)));
-  }
-  for (const items of itemsByDate) {
-    for (const item of items) {
-      if (item.slot && item.tasks.length) {
-        const slotStart = floorHalfHour(minutesForTime(item.time));
-        contentBoundaries.push(slotStart, slotStart + 30);
-      }
-    }
-  }
-  const earliest = contentBoundaries.length ? Math.min(...contentBoundaries) : 9 * 60;
-  const latest = contentBoundaries.length ? Math.max(...contentBoundaries) : 15 * 60;
-  const earlierAvailable = earliest < 9 * 60;
-  const laterAvailable = latest > 15 * 60;
-  const startMinute = agendaShowEarlier && earlierAvailable ? Math.max(0, floorHalfHour(earliest)) : 9 * 60;
-  const endMinute = agendaShowLater && laterAvailable ? Math.min(24 * 60, ceilHalfHour(latest)) : 15 * 60;
+  const startMinute = agendaStartMinute;
+  const endMinute = agendaEndMinute;
   const times = Array.from({ length: Math.max(1, (endMinute - startMinute) / 30) }, (_, index) => timeForMinutes(startMinute + index * 30));
   const rowHeights = times.map((time) => {
     const minute = minutesForTime(time);
@@ -511,6 +565,14 @@ function renderAgendaWorkweek() {
     .filter((item) => item.slot && item.tasks.length && minutesForTime(item.time) < endMinute && minutesForTime(item.time) + 30 > startMinute)
     .map((item) => minutesForTime(item.time)));
   const currentMinute = now.getHours() * 60 + now.getMinutes();
+  const rowOffsets = [0];
+  for (const height of rowHeights) rowOffsets.push(rowOffsets[rowOffsets.length - 1] + height);
+  const pixelAtMinute = (minute) => {
+    const clipped = Math.max(startMinute, Math.min(endMinute, minute));
+    if (clipped === endMinute) return rowOffsets[rowOffsets.length - 1];
+    const row = Math.floor((clipped - startMinute) / 30);
+    return rowOffsets[row] + ((clipped - (startMinute + row * 30)) / 30) * rowHeights[row];
+  };
   const eventLayoutsByDate = agendaEventsByDate.map((events, dayIndex) => {
     const sorted = visibleEventsByDate[dayIndex].map((item) => ({
       item,
@@ -549,19 +611,23 @@ function renderAgendaWorkweek() {
   const eventsByDateAndTime = eventLayoutsByDate.map((events, dayIndex) => {
     const grouped = new Map();
     for (const { item, start, end, lane, laneCount } of events) {
-      const startCell = floorHalfHour(start);
-      if (startCell < startMinute || startCell >= endMinute) continue;
-      const firstRow = (startCell - startMinute) / 30;
-      const lastRow = Math.min(rowHeights.length, Math.max(firstRow + 1, (ceilHalfHour(end) - startMinute) / 30));
-      const height = rowHeights.slice(firstRow, lastRow).reduce((sum, value) => sum + value, 0) - 6;
+      const visibleStart = Math.max(start, startMinute);
+      const visibleEnd = Math.min(end, endMinute);
+      if (visibleEnd <= visibleStart) continue;
+      const startCell = floorHalfHour(visibleStart);
+      const startRow = (startCell - startMinute) / 30;
+      const top = pixelAtMinute(visibleStart) - rowOffsets[startRow] - 1;
+      const height = pixelAtMinute(visibleEnd) - pixelAtMinute(visibleStart);
       const width = 100 / laneCount;
-      const style = `left:calc(${lane * width}% + 2px);width:calc(${width}% - 4px);height:${Math.max(34, height)}px;`;
+      const style = `top:${top}px;left:calc(${lane * width}% + 2px);width:calc(${width}% - 4px);height:${Math.max(1, height)}px;`;
       const key = timeForMinutes(startCell);
       const markup = agendaEventMarkup(item, false, true, style);
       grouped.set(key, `${grouped.get(key) || ""}${markup}`);
     }
     return grouped;
   });
+  const gridColumns = `54px 100px repeat(${dates.length}, minmax(112px, 1fr))`;
+  const minimumWidth = 154 + dates.length * 112;
   const rows = times.map((time, rowIndex) => {
     const minute = minutesForTime(time);
     const rowEnd = minute + 30;
@@ -575,13 +641,13 @@ function renderAgendaWorkweek() {
     const activity = `<div class="workweek-activity" role="cell">${activityMarkup}</div>`;
     const dayCells = itemsByDate.map((items, dayIndex) => {
       const date = dateKey(dates[dayIndex]);
-      const routineItems = routines.map((routine) => ({ ...routine, date, routine: true }));
+      const routineItems = isWorkday(date) ? routines.map((routine) => ({ ...routine, date, routine: true })) : [];
       const slots = items.filter((item) => item.slot && floorHalfHour(minutesForTime(item.time)) === minute);
       const tasks = slots.flatMap((slot) => slot.tasks.map((task, index) => ({
         slot,
         task,
         index,
-        markup: `<div class="agenda-slot-task ${task.done ? "done" : ""}" draggable="true" data-agenda-drag-task="${index}" data-date="${date}" data-time="${slot.time}" data-agenda-drop-target="${date}" data-drop-time="${time}"><label><input type="checkbox" data-agenda-slot-date="${date}" data-agenda-slot-time="${slot.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}><span>${escapeHtml(task.text)}</span></label><button class="privacy-toggle agenda-task-privacy" type="button" data-agenda-task-privacy="${index}" data-date="${date}" data-time="${slot.time}" aria-label="${task.private ? "Maak openbaar" : "Maak privé"}: ${escapeHtml(task.text)}" title="${task.private ? "Privé" : "Openbaar"}">${eyeIcon(Boolean(task.private))}</button><button class="task-move-button" type="button" data-action="move-agenda-task" data-date="${date}" data-time="${slot.time}" data-index="${index}" aria-label="Verplaats taak: ${escapeHtml(task.text)}">↗</button><button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${date}" data-time="${slot.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`,
+        markup: `<div class="agenda-slot-task ${task.done ? "done" : ""}" draggable="true" data-agenda-drag-task="${index}" data-agenda-detail-kind="task" data-date="${date}" data-time="${slot.time}" data-index="${index}" data-agenda-drop-target="${date}" data-drop-time="${time}"><label class="agenda-task-check"><input type="checkbox" data-agenda-slot-date="${date}" data-agenda-slot-time="${slot.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}></label><button class="agenda-item-details" type="button" data-action="agenda-item-details" data-kind="task" data-date="${date}" data-time="${slot.time}" data-index="${index}">${escapeHtml(task.text)}</button><button class="privacy-toggle agenda-task-privacy" type="button" data-agenda-task-privacy="${index}" data-date="${date}" data-time="${slot.time}" aria-label="${task.private ? "Maak openbaar" : "Maak privé"}: ${escapeHtml(task.text)}" title="${task.private ? "Privé" : "Openbaar"}">${eyeIcon(Boolean(task.private))}</button><button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${date}" data-time="${slot.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`,
       })));
       const taskContent = tasks.length
         ? `<div class="workweek-task-layer">${tasks.map((entry) => entry.markup).join("")}${slots.map((slot) => `<button class="agenda-add-row" type="button" data-action="add-agenda-entry" data-date="${date}" data-time="${slot.time}" aria-label="Taak of gebeurtenis toevoegen om ${slot.time}"><span class="visually-hidden">Taak of gebeurtenis toevoegen</span></button>`).join("")}</div>`
@@ -595,21 +661,42 @@ function renderAgendaWorkweek() {
       const marker = date === dateKey(now) && currentMinute >= minute && currentMinute < rowEnd
         ? `<div class="agenda-now-marker" aria-hidden="true" style="top:${(currentMinute - minute) / 30 * rowHeights[rowIndex]}px"></div>`
         : "";
-      return `<div class="workweek-cell" role="cell" data-agenda-drop-target="${date}" data-drop-time="${time}">${cellAdd}${routineMarkup}${eventMarkup}${taskContent}${marker}</div>`;
+      return `<div class="workweek-cell${eventMarkup ? " has-spanning-event" : ""}" role="cell" data-agenda-drop-target="${date}" data-drop-time="${time}">${cellAdd}${routineMarkup}${eventMarkup}${taskContent}${marker}</div>`;
     }).join("");
     const rowHeight = rowHeights[rowIndex];
-    return `<div class="workweek-row" role="row" style="--row-height:${rowHeight}px"><time class="workweek-grid-time" role="rowheader">${escapeHtml(time)}</time>${activity}${dayCells}</div>`;
+    return `<div class="workweek-row" role="row" style="--row-height:${rowHeight}px;grid-template-columns:${gridColumns}"><time class="workweek-grid-time" role="rowheader">${escapeHtml(time)}</time>${activity}${dayCells}</div>`;
   }).join("");
-  const headers = `<div class="workweek-header-row" role="row"><span class="workweek-header-cell" role="columnheader">Tijd</span><span class="workweek-header-cell" role="columnheader">Activiteit</span>${dates.map((date) => `<span class="workweek-header-cell" role="columnheader"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}</div>`;
-  const earlierToggle = earlierAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-earlier" aria-expanded="${agendaShowEarlier}">${agendaShowEarlier ? "Verberg tijden vóór 09:00" : `Toon tijden vóór 09:00 (vanaf ${timeForMinutes(floorHalfHour(earliest))})`}</button>` : "";
-  const laterToggle = laterAvailable ? `<button class="agenda-range-toggle" type="button" data-action="toggle-agenda-later" aria-expanded="${agendaShowLater}">${agendaShowLater ? "Verberg tijden na 15:00" : `Toon tijden na 15:00 (tot ${timeForMinutes(ceilHalfHour(latest))})`}</button>` : "";
-  return `${earlierToggle}<div class="workweek-scroll" role="region" aria-label="Werkweekagenda, horizontaal scrollbaar" tabindex="0"><div class="workweek-calendar" role="table" aria-label="Werkweekagenda van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}">${headers}${rows}</div></div>${laterToggle}`;
+  const headers = `<div class="workweek-header-row" role="row" style="grid-template-columns:${gridColumns}"><span class="workweek-header-cell" role="columnheader">Tijd</span><span class="workweek-header-cell" role="columnheader">Activiteit</span>${dates.map((date) => `<span class="workweek-header-cell" role="columnheader"><strong>${safeDate(dateKey(date), { weekday: "long" })}</strong><small>${safeDate(dateKey(date), { day: "numeric", month: "short" })}</small></span>`).join("")}</div>`;
+  const viewLabel = agendaView === "workweek" ? "Werkweekagenda" : "Weekagenda";
+  return `<div class="workweek-vertical-scroll" role="region" aria-label="${viewLabel}. Scroll omhoog voor eerdere uren, omlaag voor latere uren en horizontaal voor andere dagen." tabindex="0"><div class="workweek-calendar" role="table" aria-label="${viewLabel} van ${timeForMinutes(startMinute)} tot ${timeForMinutes(endMinute)}" style="min-width:${minimumWidth}px">${headers}${rows}</div></div>`;
+}
+
+function resetAgendaVisibleRange() {
+  agendaStartMinute = 9 * 60;
+  agendaEndMinute = 15 * 60 + 30;
+}
+
+function expandAgendaVisibleRange(direction) {
+  if (!["workweek", "week"].includes(agendaView) || activeRoute.split(":")[0] !== "agenda") return false;
+  if (direction < 0 && agendaStartMinute === 0) return false;
+  if (direction > 0 && agendaEndMinute === 24 * 60) return false;
+  agendaStartMinute = direction < 0 ? Math.max(0, agendaStartMinute - 60) : agendaStartMinute;
+  agendaEndMinute = direction > 0 ? Math.min(24 * 60, agendaEndMinute + 60) : agendaEndMinute;
+  const pageScroll = window.scrollY;
+  render();
+  const scroller = document.querySelector(".workweek-vertical-scroll");
+  if (scroller) {
+    scroller.scrollTop = direction < 0 ? 0 : scroller.scrollHeight;
+    scroller.focus({ preventScroll: true });
+  }
+  window.scrollTo(0, pageScroll);
+  return true;
 }
 
 function renderAgendaDays() {
   const first = agendaView === "day" ? new Date(agendaDate) : startOfWeek(agendaDate);
-  const count = agendaView === "day" ? 1 : agendaView === "workweek" ? 5 : 7;
-  return `<div class="calendar-days ${count === 1 ? "single-day" : ""} ${count === 5 ? "workweek-days" : ""}">${Array.from({ length: count }, (_, index) => {
+  const count = 1;
+  return `<div class="calendar-days single-day">${Array.from({ length: count }, (_, index) => {
     const date = new Date(first);
     date.setDate(first.getDate() + index);
     const items = agendaItemsForDate(date);
@@ -625,10 +712,10 @@ function renderAgendaMonth() {
     date.setDate(gridStart.getDate() + index);
     const events = agendaItemsForDate(date).filter((item) => !item.slot || item.tasks.length);
     return `<div class="month-day ${date.getMonth() === agendaDate.getMonth() ? "" : "outside-month"} ${dateKey(date) === dateKey(new Date()) ? "today" : ""}"><button class="month-day-select" type="button" data-action="agenda-select-day" data-date="${dateKey(date)}" aria-label="Toon agenda voor ${safeDate(dateKey(date), { weekday: "long", day: "numeric", month: "long" })}">${date.getDate()}</button>${events.slice(0, 3).map((item) => item.slot
-      ? item.tasks.map((task, index) => `<div class="month-event planned" draggable="true" data-agenda-drag-task="${index}" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><input type="checkbox" data-agenda-slot-date="${item.date}" data-agenda-slot-time="${item.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}><span>${escapeHtml(item.time)} ${escapeHtml(task.text)}</span><button class="task-move-button" type="button" data-action="move-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verplaats taak: ${escapeHtml(task.text)}">↗</button><button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`).join("")
+    ? item.tasks.map((task, index) => `<div class="month-event planned ${task.private ? "private" : ""}" draggable="true" data-agenda-drag-task="${index}" data-agenda-detail-kind="task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><input type="checkbox" data-agenda-slot-date="${item.date}" data-agenda-slot-time="${item.time}" data-agenda-slot-task="${index}" aria-label="Markeer ${escapeHtml(task.text)} als ${task.done ? "niet afgerond" : "afgerond"}" ${task.done ? "checked" : ""}><button class="agenda-item-details" type="button" data-action="agenda-item-details" data-kind="task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="${escapeHtml(`${item.time} ${task.text}${task.private ? ", privé agenda-item" : ""}`)}">${escapeHtml(item.time)} ${escapeHtml(task.text)}</button>${task.private ? `<span class="agenda-private-indicator" aria-hidden="true" title="Privé agenda-item">${eyeIcon(true)}</span>` : ""}<button class="task-delete-button" type="button" data-action="delete-agenda-task" data-date="${item.date}" data-time="${item.time}" data-index="${index}" aria-label="Verwijder taak: ${escapeHtml(task.text)}">×</button></div>`).join("")
       : item.routine
         ? `<button class="month-event routine" type="button" data-action="add-routine-event" data-date="${item.date}" data-time="${item.time}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}" aria-label="Agenda-item toevoegen bij ${escapeHtml(item.title)}">${escapeHtml(item.time)} ${escapeHtml(item.title)}</button>`
-        : `<div class="month-event ${item.type === "Workshop" ? "amber" : "planned"} ${!item.done && agendaItemIsPast(item) ? "past-agenda-event" : ""}" draggable="true" data-agenda-drag-event="${item.index}" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><span>${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))} ${escapeHtml(item.title)}</span><button class="event-move-button" type="button" data-action="move-agenda-event" data-index="${item.index}" aria-label="Verplaats ${escapeHtml(item.title)}">↗</button></div>`).join("")}${events.length > 3 ? `<button class="month-more" type="button" data-action="agenda-select-day" data-date="${dateKey(date)}">+${events.length - 3} meer</button>` : ""}</div>`;
+        : `<div class="month-event planned ${agendaEventTypeClass(item.type)} ${item.type === "Workshop" ? "amber" : ""} ${item.private ? "private" : ""} ${!item.done && agendaItemIsPast(item) ? "past-agenda-event" : ""}" draggable="true" data-agenda-drag-event="${item.index}" data-agenda-detail-kind="event" data-agenda-drop-target="${item.date}" data-drop-time="${item.time}"><button class="agenda-item-details" type="button" data-action="agenda-item-details" data-kind="event" data-index="${item.index}" aria-label="${escapeHtml(`${item.title}${item.private ? ", privé agenda-item" : ""}`)}">${minutesForTime(agendaItemEndTime(item)) - minutesForTime(item.time) === 30 ? "" : `${escapeHtml(item.time)}–${escapeHtml(agendaItemEndTime(item))} `}${escapeHtml(item.title)}</button>${item.private ? `<span class="agenda-private-indicator" aria-hidden="true" title="Privé agenda-item">${eyeIcon(true)}</span>` : ""}</div>`).join("")}${events.length > 3 ? `<button class="month-more" type="button" data-action="agenda-select-day" data-date="${dateKey(date)}">+${events.length - 3} meer</button>` : ""}</div>`;
   });
   return `<div class="month-calendar"><div class="month-weekdays">${["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"].map((day) => `<span>${day}</span>`).join("")}</div><div class="month-grid">${dates.join("")}</div></div>`;
 }
@@ -713,6 +800,7 @@ function render() {
   };
   const [label, page] = route === "challenge" ? ["Challenges", null] : (pages[route] || pages.home);
   pageLabel.textContent = label;
+  app.classList.toggle("agenda-active", route === "agenda");
   document.querySelectorAll(".nav-link").forEach((link) => link.classList.toggle("active", link.dataset.route === route));
   app.innerHTML = route === "challenge" ? challengeDetailPage(activeRoute.split(":")[1]) : page();
   renderNotifications();
@@ -755,15 +843,65 @@ function openAgendaEntryModal(date, time, selectedKind = "task", eventType = "",
   document.querySelector("#agenda-entry-title").focus();
 }
 
-function openAgendaMoveModal(kind, date, time, index) {
+function openAgendaMoveModal(kind, date, time, index, returnFocus = modalReturnFocus) {
   const task = kind === "task"
     ? agendaSlots.find((slot) => slot.date === date && slot.time === time)?.tasks[index]
     : null;
   const item = kind === "event" ? agendaItems[index] : task;
   if (!item) return;
-  modalReturnFocus = document.activeElement;
-  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="agendaMoveTitle" tabindex="-1"><div class="modal-head"><div><h2 id="agendaMoveTitle">Agenda-item verplaatsen</h2><p>${escapeHtml(item.title || item.text)} · kies de nieuwe datum en begintijd.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Venster sluiten">×</button></div><form data-form="agenda-move" data-kind="${kind}" data-date="${escapeHtml(date)}" data-time="${escapeHtml(time)}" data-index="${index}"><div class="form-grid"><div class="field"><label for="agenda-move-date">Nieuwe datum *</label><input id="agenda-move-date" name="date" type="date" required value="${escapeHtml(date)}"></div><div class="field"><label for="agenda-move-time">Nieuwe begintijd *</label><input id="agenda-move-time" name="time" type="time" required value="${escapeHtml(time)}" step="1800"></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Verplaatsen</button></div></form></section></div>`;
+  modalReturnFocus = returnFocus?.isConnected ? returnFocus : null;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="agendaMoveTitle" tabindex="-1"><div class="modal-head"><div><h2 id="agendaMoveTitle">Agenda-item verplaatsen</h2><p>${escapeHtml(item.title || item.text)} · kies de nieuwe datum en begintijd.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Venster sluiten">×</button></div><form data-form="agenda-move" data-kind="${kind}" data-date="${escapeHtml(date)}" data-time="${escapeHtml(time)}" data-index="${index}"><div class="form-grid"><div class="field"><label for="agenda-move-date">Nieuwe datum *</label><input id="agenda-move-date" name="date" type="date" required value="${escapeHtml(date)}"></div><div class="field"><label for="agenda-move-time">Nieuwe begintijd *</label><input id="agenda-move-time" name="time" type="time" required value="${escapeHtml(time)}" step="900"></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Verplaatsen</button></div></form></section></div>`;
   document.querySelector("#agenda-move-date").focus();
+}
+
+function openAgendaItemDetails(kind, date, time, index, returnFocus = document.activeElement) {
+  const task = kind === "task"
+    ? agendaSlots.find((slot) => slot.date === date && slot.time === time)?.tasks[index]
+    : null;
+  const item = kind === "event" ? agendaItems[index] : task;
+  if (!item) return;
+  const title = kind === "task" ? item.text : item.title;
+  const itemDate = kind === "task" ? date : item.date;
+  const startTime = kind === "task" ? time : item.time;
+  const endTime = kind === "task" ? timeForMinutes(minutesForTime(time) + 30) : agendaItemEndTime(item);
+  const details = kind === "task"
+    ? `<div><dt>Status</dt><dd>${item.done ? "Afgerond" : "Nog te doen"}</dd></div>`
+    : `<div><dt>Soort</dt><dd>${escapeHtml(item.type || "Gebeurtenis")}</dd></div>`;
+  const visibility = item.private ? "Privé" : "Gedeeld met je coach";
+  modalReturnFocus = returnFocus?.isConnected ? returnFocus : null;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal agenda-details-modal" role="dialog" aria-modal="true" aria-labelledby="agendaDetailsTitle" tabindex="-1"><div class="modal-head"><div><h2 id="agendaDetailsTitle">${escapeHtml(title)}</h2><p>Details van deze ${kind === "task" ? "taak" : "gebeurtenis"}.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Details sluiten">×</button></div><dl class="agenda-details-list"><div><dt>Datum</dt><dd>${safeDate(itemDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</dd></div><div><dt>Tijd</dt><dd>${escapeHtml(startTime)}–${escapeHtml(endTime)}</dd></div>${details}<div><dt>Zichtbaarheid</dt><dd>${visibility}</dd></div>${kind === "event" && item.reminder ? "<div><dt>Herinnering</dt><dd>Ingeschakeld</dd></div>" : ""}</dl><div class="modal-actions"><button class="secondary-button" type="button" data-action="edit-agenda-item" data-kind="${kind}" data-date="${escapeHtml(itemDate)}" data-time="${escapeHtml(startTime)}" data-index="${index}">Bewerken</button><button class="secondary-button" type="button" data-action="move-agenda-item" data-kind="${kind}" data-date="${escapeHtml(itemDate)}" data-time="${escapeHtml(startTime)}" data-index="${index}">Verplaatsen</button><button class="primary-button" type="button" data-action="close-modal">Sluiten</button></div></section></div>`;
+  modalRoot.querySelector(".close-button").focus();
+}
+
+function openAgendaEditModal(kind, date, time, index, returnFocus = modalReturnFocus) {
+  const task = kind === "task"
+    ? agendaSlots.find((slot) => slot.date === date && slot.time === time)?.tasks[index]
+    : null;
+  const item = kind === "event" ? agendaItems[index] : task;
+  if (!item) {
+    toast("Dit agenda-item kon niet worden gevonden.");
+    closeModal();
+    return;
+  }
+  const isPrivate = Boolean(item.private);
+  const title = kind === "task" ? item.text : item.title;
+  const privacyButton = `<div class="field full"><span class="field-label">Zichtbaarheid</span><button class="agenda-entry-privacy" type="button" data-edit-agenda-privacy aria-pressed="${isPrivate}" aria-label="${isPrivate ? "Privé; wijzig naar openbaar" : "Openbaar; wijzig naar privé"}" title="${isPrivate ? "Privé" : "Openbaar"}">${eyeIcon(isPrivate)}<span>${isPrivate ? "Privé, alleen zichtbaar voor jou" : "Openbaar, gedeeld met je coach"}</span></button></div>`;
+  const fields = kind === "task"
+    ? `<div class="field full"><label for="agenda-edit-title">Naam *</label><input id="agenda-edit-title" name="title" required maxlength="100" value="${escapeHtml(title)}"></div><p class="field-hint full">Versleep deze taak in de agenda om datum of tijd te wijzigen.</p>`
+    : `<div class="field full"><label for="agenda-edit-title">Naam *</label><input id="agenda-edit-title" name="title" required maxlength="100" value="${escapeHtml(title)}"></div><div class="field"><label for="agenda-edit-date">Datum *</label><input id="agenda-edit-date" name="date" type="date" required value="${escapeHtml(item.date)}"></div><div class="field"><label for="agenda-edit-time">Begintijd *</label><input id="agenda-edit-time" name="time" type="time" step="900" required value="${escapeHtml(item.time)}"></div><div class="field"><label for="agenda-edit-end-time">Eindtijd *</label><input id="agenda-edit-end-time" name="endTime" type="time" step="900" required value="${escapeHtml(agendaItemEndTime(item))}"></div><div class="field"><label for="agenda-edit-type">Soort gebeurtenis</label><select id="agenda-edit-type" name="eventType">${["Challenge", "Coachgesprek", "Workshop", "Anders"].map((type) => `<option ${type === item.type ? "selected" : ""}>${type}</option>`).join("")}</select></div>${privacyButton}<div class="field full"><label class="visibility-choice reminder-choice"><input type="checkbox" name="reminder" ${item.reminder ? "checked" : ""}><span><strong>Herinnering sturen</strong><small>De herinnering verschijnt in het meldingenmenu van dit prototype.</small></span></label></div>`;
+  modalReturnFocus = returnFocus?.isConnected ? returnFocus : null;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal" role="dialog" aria-modal="true" aria-labelledby="agendaEditTitle" aria-describedby="agendaEditDescription" tabindex="-1"><div class="modal-head"><div><h2 id="agendaEditTitle">Agenda-item bewerken</h2><p id="agendaEditDescription">${kind === "task" ? "Pas de naam of zichtbaarheid van deze taak aan." : "Pas de gebeurtenis, tijd of zichtbaarheid aan."}</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Bewerken sluiten">×</button></div><form data-form="agenda-edit" data-kind="${kind}" data-date="${escapeHtml(date)}" data-time="${escapeHtml(time)}" data-index="${index}"><div class="form-grid">${fields}${privacyButton && kind === "task" ? privacyButton : ""}</div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Wijzigingen opslaan</button></div></form></section></div>`;
+  modalRoot.querySelector("#agenda-edit-title").focus();
+}
+
+function openProfileSettingsModal() {
+  const days = [
+    [1, "Maandag"], [2, "Dinsdag"], [3, "Woensdag"], [4, "Donderdag"],
+    [5, "Vrijdag"], [6, "Zaterdag"], [0, "Zondag"],
+  ];
+  modalReturnFocus = document.activeElement;
+  modalRoot.innerHTML = `<div class="modal-backdrop" data-action="backdrop-close"><section class="modal profile-settings-modal" role="dialog" aria-modal="true" aria-labelledby="profileSettingsTitle" aria-describedby="profileSettingsDescription" tabindex="-1"><div class="modal-head"><div><h2 id="profileSettingsTitle">Profiel en instellingen</h2><p id="profileSettingsDescription">Pas je persoonlijke agenda-instellingen aan. Ze worden alleen in deze browser opgeslagen.</p></div><button class="close-button" type="button" data-action="close-modal" aria-label="Profielinstellingen sluiten">×</button></div><form data-form="profile-settings"><div class="form-grid"><fieldset class="field full profile-workdays" aria-describedby="profileWorkdaysDescription profileWorkdaysError"><legend>Werkdagen</legend><p id="profileWorkdaysDescription" class="field-hint">Deze dagen verschijnen in Werkweek en gelden als dagen waarop je taken kunt inplannen.</p><div class="profile-workday-options">${days.map(([day, label]) => `<label><input type="checkbox" name="workdays" value="${day}" ${profileSettings.workdays.includes(day) ? "checked" : ""}><span>${label}</span></label>`).join("")}</div><p id="profileWorkdaysError" class="form-error" role="alert" hidden>Kies minimaal één werkdag.</p></fieldset><div class="field full"><label for="profile-default-view">Standaard agendaweergave</label><select id="profile-default-view" name="defaultAgendaView"><option value="day" ${profileSettings.defaultAgendaView === "day" ? "selected" : ""}>Dag</option><option value="workweek" ${profileSettings.defaultAgendaView === "workweek" ? "selected" : ""}>Werkweek</option><option value="week" ${profileSettings.defaultAgendaView === "week" ? "selected" : ""}>Week</option></select></div></div><div class="modal-actions"><button class="secondary-button" type="button" data-action="close-modal">Annuleren</button><button class="primary-button" type="submit">Instellingen opslaan</button></div></form></section></div>`;
+  modalRoot.querySelector('input[name="workdays"]').focus();
 }
 
 function openTodoScheduleModal(todoId) {
@@ -794,9 +932,9 @@ function getAgendaSlot(date, time) {
   return slot;
 }
 
-function isWeekday(date) {
+function isWorkday(date) {
   const day = new Date(`${date}T12:00:00`).getDay();
-  return day >= 1 && day <= 5;
+  return profileSettings.workdays.includes(day);
 }
 
 function closeModal() {
@@ -832,6 +970,34 @@ async function compressChallengeImage(file) {
   }
 }
 
+document.addEventListener("wheel", (event) => {
+  const scroller = event.target.closest(".workweek-vertical-scroll");
+  if (!scroller) return;
+  const atTop = scroller.scrollTop <= 0;
+  const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
+  if (event.deltaY < 0 && atTop && agendaStartMinute > 0) {
+    event.preventDefault();
+    expandAgendaVisibleRange(-1);
+  } else if (event.deltaY > 0 && atBottom && agendaEndMinute < 24 * 60) {
+    event.preventDefault();
+    expandAgendaVisibleRange(1);
+  }
+}, { passive: false });
+
+document.addEventListener("keydown", (event) => {
+  if (!event.target.matches(".workweek-vertical-scroll")) return;
+  const scroller = event.target;
+  const atTop = scroller.scrollTop <= 0;
+  const atBottom = scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 2;
+  if ((event.key === "ArrowUp" || event.key === "PageUp") && atTop && agendaStartMinute > 0) {
+    event.preventDefault();
+    expandAgendaVisibleRange(-1);
+  } else if ((event.key === "ArrowDown" || event.key === "PageDown") && atBottom && agendaEndMinute < 24 * 60) {
+    event.preventDefault();
+    expandAgendaVisibleRange(1);
+  }
+});
+
 document.addEventListener("click", (event) => {
   const agendaPrivacyToggle = event.target.closest("[data-agenda-task-privacy]");
   if (agendaPrivacyToggle) {
@@ -862,6 +1028,16 @@ document.addEventListener("click", (event) => {
     agendaEntryPrivacy.querySelector("svg").outerHTML = eyeIcon(isPrivate);
     return;
   }
+  const agendaEditPrivacy = event.target.closest("[data-edit-agenda-privacy]");
+  if (agendaEditPrivacy) {
+    const isPrivate = agendaEditPrivacy.getAttribute("aria-pressed") !== "true";
+    agendaEditPrivacy.setAttribute("aria-pressed", String(isPrivate));
+    agendaEditPrivacy.setAttribute("aria-label", `${isPrivate ? "Privé" : "Openbaar"}; wijzig zichtbaarheid`);
+    agendaEditPrivacy.title = isPrivate ? "Privé" : "Openbaar";
+    agendaEditPrivacy.querySelector("span").textContent = isPrivate ? "Privé, alleen zichtbaar voor jou" : "Openbaar, gedeeld met je coach";
+    agendaEditPrivacy.querySelector("svg").outerHTML = eyeIcon(isPrivate);
+    return;
+  }
   const privacyToggle = event.target.closest("[data-privacy-toggle]");
   if (privacyToggle) {
     const todo = todos[Number(privacyToggle.dataset.privacyToggle)];
@@ -882,19 +1058,21 @@ document.addEventListener("click", (event) => {
   }
   const trashButton = event.target.closest("[data-todo-trash]");
   if (trashButton) return;
+  const agendaDetailCard = event.target.closest("[data-agenda-detail-kind]");
+  if (agendaDetailCard && !event.target.closest("button, input, select, a, label")) {
+    openAgendaItemDetails(
+      agendaDetailCard.dataset.agendaDetailKind,
+      agendaDetailCard.dataset.date,
+      agendaDetailCard.dataset.time,
+      Number(agendaDetailCard.dataset.index ?? agendaDetailCard.dataset.agendaDragEvent),
+      agendaDetailCard.querySelector(".agenda-item-details"),
+    );
+    return;
+  }
   const action = event.target.closest("[data-action]");
-  if (action?.dataset.action === "toggle-agenda-earlier") {
-    agendaShowEarlier = !agendaShowEarlier;
-    render();
-    return;
-  }
-  if (action?.dataset.action === "toggle-agenda-later") {
-    agendaShowLater = !agendaShowLater;
-    render();
-    return;
-  }
   if (action?.dataset.action === "agenda-view") {
     agendaView = action.dataset.view;
+    if (["workweek", "week"].includes(agendaView)) resetAgendaVisibleRange();
     render();
     return;
   }
@@ -907,11 +1085,13 @@ document.addEventListener("click", (event) => {
     else if (agendaView === "month") date.setMonth(date.getMonth() + direction);
     else date.setFullYear(date.getFullYear() + direction);
     agendaDate = date;
+    resetAgendaVisibleRange();
     render();
     return;
   }
   if (action?.dataset.action === "agenda-today") {
     agendaDate = new Date();
+    resetAgendaVisibleRange();
     render();
     return;
   }
@@ -960,6 +1140,22 @@ document.addEventListener("click", (event) => {
     return;
   }
   if (!action) return;
+  if (action.dataset.action === "profile-settings") {
+    openProfileSettingsModal();
+    return;
+  }
+  if (action.dataset.action === "agenda-item-details") {
+    openAgendaItemDetails(action.dataset.kind, action.dataset.date, action.dataset.time, Number(action.dataset.index), action);
+    return;
+  }
+  if (action.dataset.action === "edit-agenda-item") {
+    openAgendaEditModal(action.dataset.kind, action.dataset.date, action.dataset.time, Number(action.dataset.index), modalReturnFocus);
+    return;
+  }
+  if (action.dataset.action === "move-agenda-item") {
+    openAgendaMoveModal(action.dataset.kind, action.dataset.date, action.dataset.time, Number(action.dataset.index), modalReturnFocus);
+    return;
+  }
   if (action.dataset.action === "new-challenge") openChallengeModal();
   if (action.dataset.action === "edit-challenge") openChallengeModal(action.dataset.id);
   if (action.dataset.action === "remove-challenge-image") {
@@ -1005,14 +1201,6 @@ document.addEventListener("click", (event) => {
     render();
     document.querySelector(`[data-action="add-agenda-entry"][data-date="${action.dataset.date}"][data-time="${action.dataset.time}"]`)?.focus();
     toast("Taak uit de agenda verwijderd.");
-    return;
-  }
-  if (action.dataset.action === "move-agenda-task") {
-    openAgendaMoveModal("task", action.dataset.date, action.dataset.time, Number(action.dataset.index));
-    return;
-  }
-  if (action.dataset.action === "move-agenda-event") {
-    openAgendaMoveModal("event", agendaItems[Number(action.dataset.index)]?.date, agendaItems[Number(action.dataset.index)]?.time, Number(action.dataset.index));
     return;
   }
   if (action.dataset.action === "close-modal") closeModal();
@@ -1073,6 +1261,74 @@ document.addEventListener("submit", (event) => {
   if (!form) return;
   event.preventDefault();
   const data = new FormData(form);
+
+  if (form.dataset.form === "profile-settings") {
+    const selectedDays = [...form.querySelectorAll('input[name="workdays"]:checked')]
+      .map((input) => Number(input.value))
+      .sort((a, b) => workdayOrder.indexOf(a) - workdayOrder.indexOf(b));
+    if (!selectedDays.length) {
+      form.querySelector("#profileWorkdaysError").hidden = false;
+      form.querySelector('input[name="workdays"]').focus();
+      return;
+    }
+    profileSettings = {
+      workdays: selectedDays,
+      defaultAgendaView: String(data.get("defaultAgendaView")),
+    };
+    save("agora-profile-settings", profileSettings);
+    agendaView = profileSettings.defaultAgendaView;
+    closeModal();
+    render();
+    toast("Je profielinstellingen zijn opgeslagen.");
+    return;
+  }
+
+  if (form.dataset.form === "agenda-edit") {
+    const kind = form.dataset.kind;
+    const date = form.dataset.date;
+    const time = form.dataset.time;
+    const index = Number(form.dataset.index);
+    const task = kind === "task"
+      ? agendaSlots.find((slot) => slot.date === date && slot.time === time)?.tasks[index]
+      : null;
+    const item = kind === "event" ? agendaItems[index] : task;
+    if (!item) {
+      toast("Dit agenda-item kon niet worden gevonden.");
+      closeModal();
+      render();
+      return;
+    }
+    item.private = form.querySelector("[data-edit-agenda-privacy]").getAttribute("aria-pressed") === "true";
+    if (kind === "task") {
+      item.text = String(data.get("title")).trim();
+      save("agora-agenda-slots", agendaSlots);
+    } else {
+      const startTime = String(data.get("time"));
+      const endTime = String(data.get("endTime"));
+      if (minutesForTime(endTime) <= minutesForTime(startTime)) {
+        toast("De eindtijd moet na de begintijd liggen.");
+        form.querySelector("#agenda-edit-end-time").focus();
+        return;
+      }
+      item.title = String(data.get("title")).trim();
+      item.date = String(data.get("date"));
+      item.time = startTime;
+      item.endTime = endTime;
+      item.type = String(data.get("eventType"));
+      item.reminder = data.has("reminder");
+      save("agora-agenda", agendaItems);
+      agendaDate = new Date(`${item.date}T12:00:00`);
+      if (agendaView === "workweek" && !isWorkday(item.date)) agendaView = "day";
+    }
+    closeModal();
+    render();
+    const detailsSelector = kind === "task"
+      ? `[data-action="agenda-item-details"][data-kind="task"][data-date="${date}"][data-time="${time}"][data-index="${index}"]`
+      : `[data-action="agenda-item-details"][data-kind="event"][data-index="${index}"]`;
+    document.querySelector(detailsSelector)?.focus();
+    toast("Je agenda-item is bijgewerkt.");
+    return;
+  }
 
   if (form.dataset.form === "challenge") {
     const id = form.dataset.id;
@@ -1189,7 +1445,7 @@ document.addEventListener("submit", (event) => {
     }
     const date = String(data.get("date"));
     const time = String(data.get("time"));
-    if (!isWeekday(date)) {
+    if (!isWorkday(date)) {
       toast("Taken kunnen alleen op een werkdag worden ingepland.");
       form.querySelector("#todo-schedule-date").focus();
       return;
@@ -1212,7 +1468,7 @@ document.addEventListener("submit", (event) => {
     const destinationDate = String(data.get("date"));
     const destinationTime = String(data.get("time"));
     if (kind === "task") {
-      if (!isWeekday(destinationDate)) {
+      if (!isWorkday(destinationDate)) {
         toast("Taken kunnen alleen op een werkdag worden ingepland.");
         form.querySelector("#agenda-move-date").focus();
         return;
@@ -1251,7 +1507,7 @@ document.addEventListener("submit", (event) => {
     save("agora-agenda", agendaItems);
     closeModal();
     render();
-    document.querySelector(`[data-action="move-agenda-event"][data-index="${index}"]`)?.focus();
+    document.querySelector(`[data-action="agenda-item-details"][data-kind="event"][data-index="${index}"]`)?.focus();
     toast("Agenda-item naar het gekozen moment verplaatst.");
     return;
   }
@@ -1320,6 +1576,12 @@ document.addEventListener("submit", (event) => {
 });
 
 document.addEventListener("change", (event) => {
+  if (event.target.matches('input[name="workdays"]')) {
+    const form = event.target.closest('form[data-form="profile-settings"]');
+    const error = form?.querySelector("#profileWorkdaysError");
+    if (error && form.querySelector('input[name="workdays"]:checked')) error.hidden = true;
+    return;
+  }
   if (event.target.matches('input[name="kind"]') && event.target.closest('form[data-form="agenda-entry"]')) {
     const form = event.target.closest('form[data-form="agenda-entry"]');
     const isEvent = event.target.value === "event";
@@ -1389,7 +1651,159 @@ document.addEventListener("change", (event) => {
   }
 });
 
+function agendaMinuteAtClientY(clientY) {
+  const rows = [...document.querySelectorAll(".workweek-row")];
+  for (const row of rows) {
+    const bounds = row.getBoundingClientRect();
+    const start = minutesForTime(row.querySelector(".workweek-grid-time")?.textContent.trim());
+    if (clientY <= bounds.bottom) {
+      const progress = Math.max(0, Math.min(1, (clientY - bounds.top) / bounds.height));
+      return start + progress * 30;
+    }
+  }
+  const lastRow = rows[rows.length - 1];
+  return lastRow
+    ? minutesForTime(lastRow.querySelector(".workweek-grid-time")?.textContent.trim()) + 30
+    : NaN;
+}
+
+function agendaClientYAtMinute(minute) {
+  const rows = [...document.querySelectorAll(".workweek-row")];
+  for (const row of rows) {
+    const bounds = row.getBoundingClientRect();
+    const start = minutesForTime(row.querySelector(".workweek-grid-time")?.textContent.trim());
+    if (minute <= start + 30) {
+      const progress = Math.max(0, Math.min(1, (minute - start) / 30));
+      return bounds.top + progress * bounds.height;
+    }
+  }
+  return rows.length ? rows[rows.length - 1].getBoundingClientRect().bottom : NaN;
+}
+
+function saveAgendaEventResize(index, startMinute, endMinute, edge) {
+  const item = agendaItems[index];
+  if (!item || startMinute < 0 || endMinute <= startMinute || endMinute > 24 * 60 - 15) return false;
+  const startTime = timeForMinutes(startMinute);
+  const endTime = timeForMinutes(endMinute);
+  if (item.time === startTime && agendaItemEndTime(item) === endTime) return false;
+
+  item.time = startTime;
+  item.endTime = endTime;
+  save("agora-agenda", agendaItems);
+
+  const scroller = document.querySelector(".workweek-vertical-scroll");
+  const scrollTop = scroller?.scrollTop || 0;
+  const scrollLeft = scroller?.scrollLeft || 0;
+  render();
+  const newScroller = document.querySelector(".workweek-vertical-scroll");
+  if (newScroller) {
+    newScroller.scrollTop = scrollTop;
+    newScroller.scrollLeft = scrollLeft;
+  }
+  document.querySelector(`[data-agenda-resize-edge="${edge}"][data-agenda-resize-index="${index}"]`)?.focus({ preventScroll: true });
+  toast(`Gebeurtenis aangepast naar ${startTime}–${endTime}.`);
+  return true;
+}
+
+document.addEventListener("pointerdown", (event) => {
+  const handle = event.target.closest(".agenda-event-resize-handle");
+  if (!handle || event.button !== 0 || agendaEventResize) return;
+  const eventElement = handle.closest(".workweek-agenda-event");
+  const parentCell = eventElement?.closest(".workweek-cell");
+  const index = Number(handle.dataset.agendaResizeIndex);
+  const item = agendaItems[index];
+  if (!eventElement || !parentCell || !item) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const startMinute = minutesForTime(item.time);
+  const endMinute = minutesForTime(agendaItemEndTime(item));
+  agendaEventResize = {
+    pointerId: event.pointerId,
+    handle,
+    eventElement,
+    parentCell,
+    index,
+    edge: handle.dataset.agendaResizeEdge,
+    startMinute,
+    endMinute,
+    nextStartMinute: startMinute,
+    nextEndMinute: endMinute,
+    originalStyle: eventElement.getAttribute("style"),
+    originalDraggable: eventElement.getAttribute("draggable"),
+  };
+  eventElement.draggable = false;
+  parentCell.classList.add("agenda-event-resize-active");
+  handle.setPointerCapture(event.pointerId);
+});
+
+document.addEventListener("pointermove", (event) => {
+  const resize = agendaEventResize;
+  if (!resize || resize.pointerId !== event.pointerId) return;
+  event.preventDefault();
+
+  const pointerMinute = Math.round(agendaMinuteAtClientY(event.clientY) / 15) * 15;
+  if (!Number.isFinite(pointerMinute)) return;
+  if (resize.edge === "start") {
+    resize.nextStartMinute = Math.max(0, Math.min(resize.endMinute - 15, pointerMinute));
+  } else {
+    resize.nextEndMinute = Math.max(resize.startMinute + 15, Math.min(24 * 60 - 15, pointerMinute));
+  }
+
+  const top = agendaClientYAtMinute(resize.nextStartMinute);
+  const bottom = agendaClientYAtMinute(resize.nextEndMinute);
+  if (!Number.isFinite(top) || !Number.isFinite(bottom)) return;
+  const parentTop = resize.parentCell.getBoundingClientRect().top;
+  resize.eventElement.style.top = `${top - parentTop}px`;
+  resize.eventElement.style.height = `${Math.max(1, bottom - top)}px`;
+  resize.eventElement.classList.add("agenda-event-resizing");
+});
+
+function finishAgendaEventResize(event, canceled = false) {
+  const resize = agendaEventResize;
+  if (!resize || resize.pointerId !== event.pointerId) return;
+  agendaEventResize = null;
+  resize.parentCell.classList.remove("agenda-event-resize-active");
+
+  if (canceled || (resize.nextStartMinute === resize.startMinute && resize.nextEndMinute === resize.endMinute)) {
+    if (resize.originalStyle === null) resize.eventElement.removeAttribute("style");
+    else resize.eventElement.setAttribute("style", resize.originalStyle);
+    if (resize.originalDraggable === null) resize.eventElement.removeAttribute("draggable");
+    else resize.eventElement.setAttribute("draggable", resize.originalDraggable);
+    resize.eventElement.classList.remove("agenda-event-resizing");
+    return;
+  }
+  saveAgendaEventResize(resize.index, resize.nextStartMinute, resize.nextEndMinute, resize.edge);
+}
+
+document.addEventListener("pointerup", (event) => finishAgendaEventResize(event));
+document.addEventListener("pointercancel", (event) => finishAgendaEventResize(event, true));
+
+document.addEventListener("keydown", (event) => {
+  const handle = event.target.closest(".agenda-event-resize-handle");
+  if (!handle || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+  const item = agendaItems[Number(handle.dataset.agendaResizeIndex)];
+  if (!item) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  const delta = event.key === "ArrowUp" ? -15 : 15;
+  const start = minutesForTime(item.time);
+  const end = minutesForTime(agendaItemEndTime(item));
+  const nextStart = handle.dataset.agendaResizeEdge === "start"
+    ? Math.max(0, Math.min(end - 15, start + delta))
+    : start;
+  const nextEnd = handle.dataset.agendaResizeEdge === "end"
+    ? Math.max(start + 15, Math.min(24 * 60 - 15, end + delta))
+    : end;
+  saveAgendaEventResize(Number(handle.dataset.agendaResizeIndex), nextStart, nextEnd, handle.dataset.agendaResizeEdge);
+});
+
 document.addEventListener("dragstart", (event) => {
+  if (agendaEventResize || event.target.closest(".agenda-event-resize-handle")) {
+    event.preventDefault();
+    return;
+  }
   const todo = event.target.closest("[data-todo-drag]");
   const agendaTask = event.target.closest("[data-agenda-drag-task]");
   const agendaEvent = event.target.closest("[data-agenda-drag-event]");
@@ -1539,7 +1953,7 @@ document.addEventListener("drop", (event) => {
     movedItem.time = time;
     movedItem.endTime = timeForMinutes(minutesForTime(time) + duration);
     agendaItems.push(movedItem);
-    if (isWeekday(item.date) && !agendaItems.some((agendaItem) => agendaItem.date === item.date && agendaItem.time === item.time)) {
+    if (isWorkday(item.date) && !agendaItems.some((agendaItem) => agendaItem.date === item.date && agendaItem.time === item.time)) {
       getAgendaSlot(item.date, item.time);
       save("agora-agenda-slots", agendaSlots);
     }
@@ -1587,7 +2001,38 @@ document.addEventListener("click", (event) => {
   }
 });
 
-document.querySelector("#menuToggle").addEventListener("click", () => sidebar.classList.toggle("open"));
+menuToggle.addEventListener("click", () => {
+  const collapsed = appShell.classList.toggle("sidebar-collapsed");
+  localStorage.setItem("agora-sidebar-collapsed", String(collapsed));
+  syncNavigationMenu();
+});
+mobileMenuToggle.addEventListener("click", () => {
+  const opening = !sidebar.classList.contains("open");
+  sidebar.classList.toggle("open", opening);
+  syncNavigationMenu();
+  if (opening) sidebar.querySelector(".nav-link.active")?.focus({ preventScroll: true });
+  else mobileMenuToggle.focus({ preventScroll: true });
+});
+sidebarClose.addEventListener("click", () => {
+  sidebar.classList.remove("open");
+  syncNavigationMenu();
+  mobileMenuToggle.focus({ preventScroll: true });
+});
+sidebarBackdrop.addEventListener("click", () => {
+  sidebar.classList.remove("open");
+  syncNavigationMenu();
+  mobileMenuToggle.focus({ preventScroll: true });
+});
+window.addEventListener("resize", () => {
+  if (!window.matchMedia("(max-width: 760px)").matches) sidebar.classList.remove("open");
+  syncNavigationMenu();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !sidebar.classList.contains("open")) return;
+  sidebar.classList.remove("open");
+  syncNavigationMenu();
+  mobileMenuToggle.focus({ preventScroll: true });
+});
 themeToggle.addEventListener("click", () => {
   const theme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
   localStorage.setItem("agora-theme", theme);

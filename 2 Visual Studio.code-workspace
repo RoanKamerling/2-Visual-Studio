@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"chat.planAgent.defaultModel": "Auto (copilot)"
+	}
+}

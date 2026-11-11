@@ -19,40 +19,33 @@
           </span>
           <span><strong>agora</strong><small>LC Agora</small></span>
         </a>
-        <p class="nav-label">JOUW PLEK</p>
+        <button class="sidebar-close" id="sidebarClose" type="button" aria-label="Navigatiemenu sluiten">×</button>
         <nav class="primary-nav" aria-label="Hoofdnavigatie">
-          <a href="#" class="nav-link active" data-route="home"><span class="nav-icon">⌂</span> Overzicht</a>
-          <a href="#" class="nav-link" data-route="challenges"><span class="nav-icon">✳</span> Challenges <span class="nav-count">2</span></a>
-          <a href="#" class="nav-link" data-route="workshops"><span class="nav-icon">♧</span> Workshops</a>
-          <a href="#" class="nav-link" data-route="inspiration"><span class="nav-icon">✧</span> Inspiratie</a>
-          <a href="#" class="nav-link" data-route="agenda"><span class="nav-icon">▦</span> Agenda</a>
-          <a href="#" class="nav-link" data-route="coaching"><span class="nav-icon">♡</span> Coach & feedback</a>
-          <a href="#" class="nav-link" data-route="messages"><span class="nav-icon">☏</span> Berichten <span class="nav-dot"></span></a>
-          <a href="#" class="nav-link" data-route="portfolio"><span class="nav-icon">◈</span> Groeiportfolio</a>
-        </nav>
-        <div class="sidebar-bottom">
-          <div class="coach-card">
-            <span class="coach-avatar">M</span>
-            <span><strong>Marit de Vries</strong><small>Jouw coach</small></span>
-            <span class="online-dot" aria-label="online"></span>
+          <div class="nav-overview-row">
+            <a href="#" class="nav-link active" data-route="home" aria-label="Overzicht" title="Overzicht"><span class="nav-icon" aria-hidden="true">⌂</span><span class="nav-link-label">Overzicht</span></a>
+            <button class="sidebar-toggle" id="menuToggle" type="button" aria-controls="sidebar" aria-expanded="true" aria-label="Navigatiemenu inklappen" title="Navigatiemenu inklappen">☰</button>
           </div>
-          <button class="profile-button" type="button" aria-label="Profiel bekijken">
-            <span class="student-avatar">S</span>
-            <span><strong>Sam Jansen</strong><small>Leerling · Agora 2</small></span>
-            <span class="profile-chevron">⌄</span>
-          </button>
-        </div>
+          <a href="#" class="nav-link" data-route="challenges" aria-label="Challenges" title="Challenges"><span class="nav-icon" aria-hidden="true">✳</span><span class="nav-link-label">Challenges</span><span class="nav-count">2</span></a>
+          <a href="#" class="nav-link" data-route="workshops" aria-label="Workshops" title="Workshops"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path class="hammer-head" d="M3 4.7 6.2 1.5l5 5-3.2 3.2-1.2-1.2-2 2-2.2-2.2 2-2L3 4.7Z"/><path class="hammer-handle" d="m9 8.7 9.7 9.7"/><path d="M21 4a5 5 0 0 0-6.1 6.1l-8.6 8.6a1.8 1.8 0 1 0 2.5 2.5l8.6-8.6A5 5 0 0 0 23 6l-3.1 3.1-3-3L20 3Z"/></svg></span><span class="nav-link-label">Workshops</span></a>
+          <a href="#" class="nav-link" data-route="inspiration" aria-label="Inspiratie" title="Inspiratie"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 17h6M10 21h4m-5-6.5a7 7 0 1 1 6 0c-.5.4-1 1.2-1 2.5h-4c0-1.3-.5-2.1-1-2.5Z"/><path d="M12 1.5v2m7.1 1.4-1.4 1.4M22 12h-2M4.3 4.9l1.4 1.4M2 12h2"/></svg></span><span class="nav-link-label">Inspiratie</span></a>
+          <a href="#" class="nav-link" data-route="agenda" aria-label="Agenda" title="Agenda"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5.5 3.5v4M18.5 3.5v4M4.5 6h15A2.5 2.5 0 0 1 22 8.5v10a3.5 3.5 0 0 1-3.5 3.5h-13A3.5 3.5 0 0 1 2 18.5v-10A2.5 2.5 0 0 1 4.5 6Z"/><path d="M2.5 10h19"/><text class="agenda-icon-date" x="12" y="18" text-anchor="middle">12</text></svg></span><span class="nav-link-label">Agenda</span></a>
+          <a href="#" class="nav-link" data-route="coaching" aria-label="Coach & feedback" title="Coach & feedback"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 3.5h8.5a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H7l-3 2V9.5a2 2 0 0 1-2-2v-2a2 2 0 0 1 2-2Z"/><path d="M13 5h5.5a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2H17l-2.5 1.8V11"/><circle cx="7" cy="15.5" r="2"/><circle cx="17" cy="15.5" r="2"/><path d="M2.5 22c.3-2.8 1.7-4.2 4.5-4.2s4.2 1.4 4.5 4.2m1-0.1c.3-2.7 1.7-4.1 4.5-4.1s4.2 1.4 4.5 4.1"/></svg></span><span class="nav-link-label">Coach & feedback</span></a>
+          <a href="#" class="nav-link" data-route="messages" aria-label="Berichten" title="Berichten"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.5 11.5a7.5 7.5 0 0 1-7.5 7.5H7l-3.5 2 .7-4.5A7.2 7.2 0 0 1 3 12v-.5A7.5 7.5 0 0 1 10.5 4h2.5a7.5 7.5 0 0 1 7.5 7.5Z"/></svg></span><span class="nav-link-label">Berichten</span><span class="nav-dot" aria-hidden="true"></span></a>
+          <a href="#" class="nav-link" data-route="portfolio" aria-label="Groeiportfolio" title="Groeiportfolio"><span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 21V9"/><path d="M12 16c-4 0-6-2.4-6-6.2 4 0 6 2.2 6 6.2Zm0-4c0-4 2.2-6.2 6-6.2 0 4-2 6.2-6 6.2Z"/><path d="M12 9c0-2.7 1.3-4.7 3.6-6"/><path d="M8 21h8"/></svg></span><span class="nav-link-label">Groeiportfolio</span></a>
+        </nav>
       </aside>
 
+      <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true" hidden></div>
       <main class="main-area">
         <header class="topbar">
-          <button class="mobile-menu" type="button" id="menuToggle" aria-label="Menu openen">☰</button>
+          <button class="mobile-menu" type="button" id="mobileMenuToggle" aria-controls="sidebar" aria-expanded="false" aria-label="Navigatiemenu openen" title="Navigatiemenu openen">☰</button>
           <div class="breadcrumb"><span>LC Agora</span><span class="crumb-separator">/</span><strong id="pageLabel">Overzicht</strong></div>
           <div class="topbar-actions">
             <span class="demo-badge"><span></span> Prototype</span>
             <button class="icon-button theme-toggle" type="button" id="themeToggle" aria-label="Donkere modus inschakelen" title="Donkere modus inschakelen">☾</button>
             <button class="icon-button notification-button" type="button" aria-label="Meldingen" aria-expanded="false" data-action="toggle-notifications">♧<i></i><span class="notification-count" id="notificationCount" hidden></span></button>
             <button class="help-button" type="button" data-route="portfolio">? <span>Hulp</span></button>
+            <button class="icon-button profile-icon-button" type="button" data-action="profile-settings" aria-label="Profiel en instellingen" aria-haspopup="dialog" title="Profiel en instellingen"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M4.5 20c.7-3.5 3.4-5.5 7.5-5.5s6.8 2 7.5 5.5"></path></svg></button>
           </div>
         </header>
         <div id="app" class="page-content" tabindex="-1"></div>
